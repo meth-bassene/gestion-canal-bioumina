@@ -294,6 +294,18 @@ def init_db():
         h = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
         c.execute("INSERT INTO users (username, telephone, password, role, nom_complet, date_creation) VALUES (?,?,?,?,?,?)",
                   ("admin", "000000000", h.decode(), "admin", "Administrateur", datetime.now().strftime("%Y-%m-%d")))
+    # Migration : ajouter les nouvelles colonnes si elles n'existent pas
+    colonnes_a_ajouter = [
+        ("prix_formule", "REAL DEFAULT 0"),
+        ("prix_decodeur", "REAL DEFAULT 0"),
+        ("promo", "REAL DEFAULT 0"),
+    ]
+    for col, type_col in colonnes_a_ajouter:
+        try:
+            c.execute(f"ALTER TABLE decodeurs ADD COLUMN {col} {type_col}")
+        except:
+            pass  # Colonne déjà existante
+
     conn.commit()
     conn.close()
 
