@@ -17,9 +17,18 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
 :root { --noir:#0a0a0a; --blanc:#ffffff; --gris:#f4f4f4; --gris2:#e8e8e8; --gris3:#666; --rouge:#e50000; --vert:#00b341; --jaune:#f5a623; }
-* { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+* { font-family:'DM Sans',sans-serif; box-sizing:border-box; color:#0a0a0a; }
 h1,h2,h3 { font-family:'Syne',sans-serif; }
 .stApp { background:var(--gris); }
+/* Forcer texte visible partout sauf sidebar */
+.stMarkdown, .stMarkdown p, .stMarkdown li,
+p, span, div, h1, h2, h3, h4, h5,
+label, .stRadio span, .stCheckbox span,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stText"] { color:#0a0a0a !important; }
+/* Tabs texte visible */
+.stTabs [data-baseweb="tab"] { color:#666666 !important; }
+.stTabs [aria-selected="true"] { color:#ffffff !important; }
 [data-testid="stSidebar"] { background:var(--noir) !important; border-right:1px solid #1a1a1a; }
 [data-testid="stSidebar"] * { color:var(--blanc) !important; }
 [data-testid="stSidebar"] .stRadio label { border-radius:8px; padding:10px 14px; cursor:pointer; transition:background 0.15s; font-size:0.9rem; display:block; }
@@ -493,35 +502,41 @@ else:
                     else:
                         st.error("Aucun numero valide.")
             else:
-                if 'scanned' not in st.session_state:
-                    st.session_state.scanned = []
-                scan_in = st.text_input("Scanner ici — appuyez Entree apres chaque scan", key="scan_in")
-                ca,cb = st.columns(2)
-                with ca:
-                    if st.button("Ajouter ce numero") and scan_in:
-                        if scan_in.strip() not in st.session_state.scanned and len(st.session_state.scanned) < 20:
-                            st.session_state.scanned.append(scan_in.strip())
-                            st.success(f"Ajoute : {scan_in.strip()}")
-                with cb:
-                    if st.button("Vider la liste"):
+                try:
+                    from streamlit_qrcode_scanner import qrcode_scanner
+                    if 'scanned' not in st.session_state:
                         st.session_state.scanned = []
-                        st.rerun()
-                if st.session_state.scanned:
-                    st.markdown(f"**{len(st.session_state.scanned)} numero(s) scanne(s) :**")
-                    for n in st.session_state.scanned:
-                        st.markdown(f"- `{n}`")
-                    if st.button("Enregistrer tous les scans", use_container_width=True):
-                        conn = db()
-                        cur = conn.cursor()
-                        ok = 0
-                        for num in st.session_state.scanned:
-                            cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (?,'disponible',?,?)",
-                                        (num,v_username,datetime.now().strftime("%Y-%m-%d %H:%M")))
-                            ok += cur.rowcount
-                        conn.commit()
-                        conn.close()
-                        st.session_state.scanned = []
-                        st.success(f"{ok} decodeur(s) enregistre(s).")
+                    st.info("Pointez la camera vers le code-barres ou QR code du decodeur.")
+                    qr_result = qrcode_scanner(key="qr_scanner")
+                    if qr_result and qr_result.strip():
+                        num_scanne = qr_result.strip()
+                        if num_scanne not in st.session_state.scanned and len(st.session_state.scanned) < 20:
+                            st.session_state.scanned.append(num_scanne)
+                            st.success(f"Numero detecte : {num_scanne}")
+                    if st.session_state.scanned:
+                        st.markdown(f"**{len(st.session_state.scanned)} numero(s) scanne(s) :**")
+                        for n in st.session_state.scanned:
+                            st.markdown(f"- `{n}`")
+                        ca_col, cb_col = st.columns(2)
+                        with ca_col:
+                            if st.button("Enregistrer tous les scans", use_container_width=True):
+                                conn = db()
+                                cur = conn.cursor()
+                                ok = 0
+                                for num in st.session_state.scanned:
+                                    cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (?,'disponible',?,?)",
+                                                (num,v_username,datetime.now().strftime("%Y-%m-%d %H:%M")))
+                                    ok += cur.rowcount
+                                conn.commit()
+                                conn.close()
+                                st.session_state.scanned = []
+                                st.success(f"{ok} decodeur(s) enregistre(s).")
+                        with cb_col:
+                            if st.button("Vider la liste", use_container_width=True):
+                                st.session_state.scanned = []
+                                st.rerun()
+                except Exception:
+                    st.warning("Scanner non disponible. Utilisez la saisie manuelle.")
 
         with tab3:
             conn = db()
