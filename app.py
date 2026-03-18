@@ -30,9 +30,7 @@ h1,h2,h3 { font-family:'Syne',sans-serif; }
     font-family:'DM Sans',sans-serif !important; font-size:0.95rem !important; padding:10px 12px !important;
 }
 /* Labels visibles partout */
-label, .stTextInput label, .stNumberInput label, .stSelectbox label,
-.stTextArea label, .stRadio label, .stDateInput label,
-p, .stMarkdown p, div[data-testid="stWidgetLabel"] p {
+label, div[data-testid="stWidgetLabel"] p {
     color:#0a0a0a !important;
     font-family:'DM Sans',sans-serif !important;
     font-size:0.9rem !important;
@@ -372,9 +370,8 @@ else:
                 formule = st.selectbox("Formule Canal+", list(FORMULES.keys()))
                 prix_formule = FORMULES[formule]
                 prix_deco = st.number_input("Prix du decodeur (FCFA)", min_value=0, value=PRIX_DECODEUR_DEFAULT, step=500)
-                promo_label = st.selectbox("Promotion", list(PROMOS.keys()))
-                promo_val = PROMOS[promo_label]
-                prix_deco_final = max(0, prix_deco - promo_val)
+                prix_deco_final = prix_deco
+                promo_val = 0
                 total = prix_formule + prix_deco_final
                 st.markdown(f"""
                 <div class="prix-box">
