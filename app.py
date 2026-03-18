@@ -17,18 +17,20 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
 :root { --noir:#0a0a0a; --blanc:#ffffff; --gris:#f4f4f4; --gris2:#e8e8e8; --gris3:#666; --rouge:#e50000; --vert:#00b341; --jaune:#f5a623; }
-* { font-family:'DM Sans',sans-serif; box-sizing:border-box; color:#0a0a0a; }
+* { font-family:'DM Sans',sans-serif; box-sizing:border-box; }
 h1,h2,h3 { font-family:'Syne',sans-serif; }
 .stApp { background:var(--gris); }
-/* Forcer texte visible partout sauf sidebar */
-.stMarkdown, .stMarkdown p, .stMarkdown li,
-p, span, div, h1, h2, h3, h4, h5,
-label, .stRadio span, .stCheckbox span,
-[data-testid="stMarkdownContainer"] p,
-[data-testid="stText"] { color:#0a0a0a !important; }
-/* Tabs texte visible */
+/* Texte noir sur fond clair uniquement */
+.stMarkdown p, .stMarkdown li,
+[data-testid="stMarkdownContainer"] p { color:#0a0a0a !important; }
+/* Labels des champs */
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stWidgetLabel"] label { color:#0a0a0a !important; }
+/* Tabs */
 .stTabs [data-baseweb="tab"] { color:#666666 !important; }
 .stTabs [aria-selected="true"] { color:#ffffff !important; }
+/* Infos et warnings */
+.stAlert p { color:#0a0a0a !important; }
 [data-testid="stSidebar"] { background:var(--noir) !important; border-right:1px solid #1a1a1a; }
 [data-testid="stSidebar"] * { color:var(--blanc) !important; }
 [data-testid="stSidebar"] .stRadio label { border-radius:8px; padding:10px 14px; cursor:pointer; transition:background 0.15s; font-size:0.9rem; display:block; }
