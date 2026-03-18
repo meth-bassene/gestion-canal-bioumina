@@ -205,7 +205,7 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
 if not st.session_state.connecte:
     col1,col2,col3 = st.columns([1,1.1,1])
     with col2:
-        st.image("logo.png", use_container_width=True)
+        st.image(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"), use_container_width=True)
         if not st.session_state.mode_token:
             tel = st.text_input("Numero de telephone ou identifiant")
             pwd = st.text_input("Mot de passe", type="password")
@@ -264,7 +264,7 @@ if not st.session_state.connecte:
 else:
     nc = notif_count(st.session_state.user)
     with st.sidebar:
-        st.image("logo.png", use_container_width=True)
+        st.image(os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"), use_container_width=True)
         st.markdown(f"""
         <hr style="border-color:#1a1a1a;margin:8px 0 12px;">
         <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{'ADMIN' if st.session_state.role=='admin' else 'VENDEUR'}</div>
