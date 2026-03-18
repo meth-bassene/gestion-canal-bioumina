@@ -29,6 +29,15 @@ h1,h2,h3 { font-family:'Syne',sans-serif; }
     border:1.5px solid #cccccc !important; border-radius:8px !important;
     font-family:'DM Sans',sans-serif !important; font-size:0.95rem !important; padding:10px 12px !important;
 }
+/* Labels visibles partout */
+label, .stTextInput label, .stNumberInput label, .stSelectbox label,
+.stTextArea label, .stRadio label, .stDateInput label,
+p, .stMarkdown p, div[data-testid="stWidgetLabel"] p {
+    color:#0a0a0a !important;
+    font-family:'DM Sans',sans-serif !important;
+    font-size:0.9rem !important;
+    font-weight:500 !important;
+}
 .stTextInput input:focus, .stNumberInput input:focus { border-color:var(--noir) !important; box-shadow:0 0 0 3px rgba(0,0,0,0.1) !important; }
 .stSelectbox > div > div { background:#ffffff !important; color:#0a0a0a !important; border:1.5px solid #cccccc !important; border-radius:8px !important; }
 .stButton > button { background:var(--noir) !important; color:var(--blanc) !important; border:none !important; border-radius:8px !important; font-weight:600 !important; font-size:0.9rem !important; padding:10px 20px !important; transition:all 0.15s !important; }
