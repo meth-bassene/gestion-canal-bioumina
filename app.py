@@ -420,6 +420,7 @@ else:
                         st.session_state.vente_data = {}
                         st.success(f"Vente confirmee ! {v['numero']} vendu a {v['client_nom']} pour {v['total']:,} FCFA")
                         st.balloons()
+                        st.rerun()
                 with col_non:
                     if st.button("Annuler", use_container_width=True):
                         st.session_state.confirmer_vente = False
@@ -598,7 +599,7 @@ else:
     # ══ VENDEURS ════════════════════════════════════════════
     elif choix == "Vendeurs" and st.session_state.role == "admin":
         st.markdown('<div class="page-title">Gestion des Vendeurs</div>', unsafe_allow_html=True)
-        tab1,tab2,tab3 = st.tabs(["Liste des vendeurs","Ajouter un vendeur","Token recuperation"])
+        tab1,tab2,tab3,tab4 = st.tabs(["Liste des vendeurs","Ajouter un vendeur","Modifier/Supprimer","Token recuperation"])
 
         with tab1:
             conn = db()
@@ -632,12 +633,73 @@ else:
                         conn.commit()
                         conn.close()
                         st.success(f"Compte cree pour {nn} — connexion avec le telephone {nt}")
+                        st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("Identifiant ou telephone deja utilise.")
                 else:
                     st.error("Remplissez tous les champs.")
 
         with tab3:
+            st.markdown("#### Modifier ou supprimer un vendeur")
+            conn = db()
+            df_edit = pd.read_sql_query("SELECT username, nom_complet, telephone FROM users WHERE role='vendeur'", conn)
+            conn.close()
+            if df_edit.empty:
+                st.info("Aucun vendeur enregistre.")
+            else:
+                e_opts = [f"{r['nom_complet']} ({r['telephone']})" for _,r in df_edit.iterrows()]
+                e_sel = st.selectbox("Choisir le vendeur", e_opts, key="edit_vendeur_sel")
+                e_idx = e_opts.index(e_sel)
+                e_row = df_edit.iloc[e_idx]
+
+                st.markdown("**Modifier les informations**")
+                ec1, ec2 = st.columns(2)
+                with ec1:
+                    new_nom = st.text_input("Nouveau nom complet", value=e_row['nom_complet'], key="edit_nom")
+                    new_tel = st.text_input("Nouveau telephone", value=e_row['telephone'], key="edit_tel")
+                with ec2:
+                    new_pwd_edit = st.text_input("Nouveau mot de passe (laisser vide = pas de changement)", type="password", key="edit_pwd")
+
+                if st.button("Sauvegarder les modifications", use_container_width=True, key="btn_save_vendeur"):
+                    conn = db()
+                    cur = conn.cursor()
+                    cur.execute("UPDATE users SET nom_complet=?, telephone=? WHERE username=?",
+                                (new_nom, new_tel, e_row['username']))
+                    if new_pwd_edit:
+                        h = bcrypt.hashpw(new_pwd_edit.encode(), bcrypt.gensalt())
+                        cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), e_row['username']))
+                    conn.commit()
+                    conn.close()
+                    st.success(f"Vendeur {new_nom} mis a jour.")
+                    st.rerun()
+
+                st.divider()
+                st.markdown("**Supprimer ce vendeur**")
+                if st.button("Supprimer ce vendeur", use_container_width=True, key="btn_del_vendeur"):
+                    if 'confirm_delete' not in st.session_state:
+                        st.session_state.confirm_delete = False
+                    st.session_state.confirm_delete = True
+                    st.rerun()
+
+                if st.session_state.get('confirm_delete', False):
+                    st.warning(f"Confirmer la suppression de {e_row['nom_complet']} ?")
+                    cd1, cd2 = st.columns(2)
+                    with cd1:
+                        if st.button("Oui supprimer", use_container_width=True, key="btn_confirm_del"):
+                            conn = db()
+                            cur = conn.cursor()
+                            cur.execute("DELETE FROM users WHERE username=?", (e_row['username'],))
+                            conn.commit()
+                            conn.close()
+                            st.session_state.confirm_delete = False
+                            st.success("Vendeur supprime.")
+                            st.rerun()
+                    with cd2:
+                        if st.button("Annuler", use_container_width=True, key="btn_cancel_del"):
+                            st.session_state.confirm_delete = False
+                            st.rerun()
+
+        with tab4:
             st.markdown("#### Generer un token de recuperation")
             conn = db()
             df_u = pd.read_sql_query("SELECT username,nom_complet,telephone FROM users WHERE role='vendeur'", conn)
