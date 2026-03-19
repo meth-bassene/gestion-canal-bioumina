@@ -209,32 +209,15 @@ div[class*="StatusWidget"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
-def get_db_connection():
-    conn = psycopg2.connect(
+def db():
+    return psycopg2.connect(
         host="aws-1-eu-west-1.pooler.supabase.com",
         port=5432,
         database="postgres",
         user="postgres.xcvfzkcwswvabygbrewy",
         password=st.secrets["DB_PASSWORD"],
-        sslmode="require",
-        connect_timeout=10,
-        keepalives=1,
-        keepalives_idle=30,
-        keepalives_interval=10,
-        keepalives_count=5
+        sslmode="require"
     )
-    conn.autocommit = False
-    return conn
-
-def db():
-    try:
-        conn = get_db_connection()
-        conn.cursor().execute("SELECT 1")
-        return conn
-    except Exception:
-        get_db_connection.clear()
-        return get_db_connection()
 
 def query_df(sql, conn, params=None):
     """Execute SQL and return DataFrame - compatible with psycopg2"""
