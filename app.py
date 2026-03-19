@@ -233,11 +233,12 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
 # Restaurer session depuis cookies si disponible
 if USE_COOKIES and not st.session_state.connecte:
     try:
-        if cookies.get("user"):
+        if cookies.get("user") and cookies.get("user") != "":
             st.session_state.connecte = True
             st.session_state.user = cookies["user"]
             st.session_state.role = cookies["role"]
             st.session_state.nom = cookies["nom"]
+            st.session_state.mode_token = False
     except:
         pass
 
