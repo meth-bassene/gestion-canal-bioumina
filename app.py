@@ -251,7 +251,7 @@ def get_stats():
     c.execute("SELECT COALESCE(SUM(prix_total),0) FROM decodeurs WHERE statut='vendu'")
     ca = c.fetchone()[0]
     today = datetime.now().strftime("%Y-%m-%d")
-    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation LIKE %s", (f"{today}%",))
+    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation::text LIKE %s", (f"{today}%",))
     vj = c.fetchone()[0]
     conn.close()
     return dispo, vendus, ca, vj
@@ -263,7 +263,7 @@ def get_ventes_jour():
         SELECT u.nom_complet as Vendeur, COUNT(d.id) as Ventes_aujourd_hui,
                COALESCE(SUM(d.prix_total),0) as CA_aujourd_hui
         FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username
-            AND d.statut='vendu' AND d.date_activation LIKE '{today}%'
+            AND d.statut='vendu' AND d.date_activation::text LIKE '{today}%'
         GROUP BY u.username ORDER BY Ventes_aujourd_hui DESC
     """, conn)
     conn.close()
