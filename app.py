@@ -188,22 +188,9 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 /* DATAFRAME */
 [data-testid="stDataFrame"] { border-radius:10px; overflow:hidden; }
 
-/* TRANSITION DOUCE entre pages */
-.main .block-container {
-    animation: fadeIn 0.3s ease-in-out;
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Cacher le spinner Streamlit par défaut */
+/* Cacher elements inutiles */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
-header { visibility: hidden; }
-
-/* Barre de progression en haut */
-.stProgress > div > div { background:#0a0a0a !important; }
 
 /* MOBILE RESPONSIVE */
 @media (max-width: 768px) {
