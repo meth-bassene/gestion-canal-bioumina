@@ -117,7 +117,7 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 
 /* STAT CARDS */
 .stat-card { background:#ffffff; border-radius:12px; padding:18px; border:1px solid #e8e8e8; margin-bottom:8px; }
-.stat-label { font-size:0.72rem; color:#666; font-weight:500; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
+.stat-label { font-size:0.72rem; color:#666; font-weight:500; text- letter-spacing:0.8px; margin-bottom:6px; }
 .stat-value { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:#0a0a0a; }
 .stat-sub { font-size:0.78rem; color:#666; margin-top:2px; }
 .stat-vert .stat-value { color:#00b341; }
@@ -128,10 +128,10 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 
 /* PRIX/TOTAL */
 .prix-box { background:#0a0a0a; color:#ffffff; border-radius:12px; padding:18px; text-align:center; margin:10px 0; }
-.prix-box .plabel { font-size:0.75rem; color:#cccccc; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.prix-box .plabel { font-size:0.75rem; color:#cccccc; text- letter-spacing:1px; margin-bottom:4px; }
 .prix-box .pmontant { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:#ffffff; }
 .total-box { background:#00b341; color:#ffffff; border-radius:12px; padding:18px; text-align:center; margin:10px 0; }
-.total-box .plabel { font-size:0.75rem; color:#ffffff; text-transform:uppercase; margin-bottom:4px; }
+.total-box .plabel { font-size:0.75rem; color:#ffffff; text- margin-bottom:4px; }
 .total-box .pmontant { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#ffffff; }
 .total-box div { color:#ffffff !important; }
 
