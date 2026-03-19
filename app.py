@@ -230,6 +230,9 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
     if k not in st.session_state:
         st.session_state[k] = v
 
+# Toujours forcer mode_token à False au démarrage
+st.session_state.mode_token = False
+
 # Restaurer session depuis cookies si disponible
 if USE_COOKIES and not st.session_state.connecte:
     try:
@@ -870,52 +873,52 @@ else:
     elif choix == "Parametres" and st.session_state.role == "admin":
         st.markdown('<div class="page-title">Parametres</div>', unsafe_allow_html=True)
         # Bouton sauvegarde complète
-    st.markdown("#### Sauvegarde des donnees")
-    if st.button("Telecharger sauvegarde complete", use_container_width=True):
-        conn = db()
-        df_save_dec = pd.read_sql_query("SELECT * FROM decodeurs", conn)
-        df_save_usr = pd.read_sql_query("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
-        df_save_notif = pd.read_sql_query("SELECT * FROM notifications", conn)
-        conn.close()
-        out = io.BytesIO()
-        with pd.ExcelWriter(out, engine='openpyxl') as w:
-            df_save_dec.to_excel(w, index=False, sheet_name="Decodeurs")
-            df_save_usr.to_excel(w, index=False, sheet_name="Vendeurs")
-            df_save_notif.to_excel(w, index=False, sheet_name="Notifications")
-        st.download_button(
-            "Cliquez ici pour telecharger",
-            out.getvalue(),
-            f"sauvegarde_appstock_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_sauvegarde"
-        )
-        st.success("Sauvegarde prete ! Gardez ce fichier en lieu sur.")
-    
-    st.divider()
-    st.markdown("#### Changer le mot de passe")
-    ancien_pwd = st.text_input("Ancien mot de passe", type="password")
-    nouveau_pwd1 = st.text_input("Nouveau mot de passe", type="password")
-    nouveau_pwd2 = st.text_input("Confirmer le nouveau mot de passe", type="password")
-    if st.button("Mettre a jour"):
-        if nouveau_pwd1 != nouveau_pwd2:
-            st.error("Les mots de passe ne correspondent pas.")
-        elif len(nouveau_pwd1) < 6:
-            st.error("Minimum 6 caracteres.")
-        else:
+        st.markdown("#### Sauvegarde des donnees")
+        if st.button("Telecharger sauvegarde complete", use_container_width=True):
             conn = db()
-            cur = conn.cursor()
-            cur.execute("SELECT password FROM users WHERE username=?", (st.session_state.user,))
-            res = cur.fetchone()
-            if res:
-                pwd_stored = res[0].encode() if isinstance(res[0], str) else res[0]
-                if bcrypt.checkpw(ancien_pwd.encode(), pwd_stored):
-                    h = bcrypt.hashpw(nouveau_pwd1.encode(), bcrypt.gensalt())
-                    cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), st.session_state.user))
-                    conn.commit()
-                    st.success("Mot de passe mis a jour.")
-                else:
-                    st.error("Ancien mot de passe incorrect.")
+            df_save_dec = pd.read_sql_query("SELECT * FROM decodeurs", conn)
+            df_save_usr = pd.read_sql_query("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
+            df_save_notif = pd.read_sql_query("SELECT * FROM notifications", conn)
             conn.close()
+            out = io.BytesIO()
+            with pd.ExcelWriter(out, engine='openpyxl') as w:
+                df_save_dec.to_excel(w, index=False, sheet_name="Decodeurs")
+                df_save_usr.to_excel(w, index=False, sheet_name="Vendeurs")
+                df_save_notif.to_excel(w, index=False, sheet_name="Notifications")
+            st.download_button(
+                "Cliquez ici pour telecharger",
+                out.getvalue(),
+                f"sauvegarde_appstock_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_sauvegarde"
+            )
+            st.success("Sauvegarde prete ! Gardez ce fichier en lieu sur.")
+        
+        st.divider()
+        st.markdown("#### Changer le mot de passe")
+        ancien_pwd = st.text_input("Ancien mot de passe", type="password")
+        nouveau_pwd1 = st.text_input("Nouveau mot de passe", type="password")
+        nouveau_pwd2 = st.text_input("Confirmer le nouveau mot de passe", type="password")
+        if st.button("Mettre a jour"):
+            if nouveau_pwd1 != nouveau_pwd2:
+                st.error("Les mots de passe ne correspondent pas.")
+            elif len(nouveau_pwd1) < 6:
+                st.error("Minimum 6 caracteres.")
+            else:
+                conn = db()
+                cur = conn.cursor()
+                cur.execute("SELECT password FROM users WHERE username=?", (st.session_state.user,))
+                res = cur.fetchone()
+                if res:
+                    pwd_stored = res[0].encode() if isinstance(res[0], str) else res[0]
+                    if bcrypt.checkpw(ancien_pwd.encode(), pwd_stored):
+                        h = bcrypt.hashpw(nouveau_pwd1.encode(), bcrypt.gensalt())
+                        cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), st.session_state.user))
+                        conn.commit()
+                        st.success("Mot de passe mis a jour.")
+                    else:
+                        st.error("Ancien mot de passe incorrect.")
+                conn.close()
         st.divider()
         st.markdown("#### Historique des modifications")
         conn = db()
