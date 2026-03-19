@@ -829,7 +829,7 @@ else:
                 SELECT u.nom_complet,u.telephone,u.role,u.date_creation,
                        COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca
                 FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username AND d.statut='vendu'
-                GROUP BY u.username, u.nom_complet ORDER BY ca DESC
+                GROUP BY u.username, u.nom_complet, u.telephone, u.role, u.date_creation ORDER BY ca DESC
             """, conn)
             conn.close()
             if not df_vend.empty:
