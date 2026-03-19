@@ -191,6 +191,12 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 /* Cacher elements inutiles */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
+header { visibility: hidden; }
+/* Cacher le spinner Running */
+div[data-testid="stStatusWidget"] { display: none !important; }
+div[data-testid="stToolbar"] { display: none !important; }
+.stSpinner { display: none !important; }
+div[class*="StatusWidget"] { display: none !important; }
 
 /* MOBILE RESPONSIVE */
 @media (max-width: 768px) {
