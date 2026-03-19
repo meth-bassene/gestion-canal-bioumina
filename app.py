@@ -276,7 +276,7 @@ def get_ventes_jour():
                COALESCE(SUM(d.prix_total),0) as CA_aujourd_hui
         FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username
             AND d.statut='vendu' AND d.date_activation::text LIKE '{today}%'
-        GROUP BY u.username, u.nom_complet ORDER BY Ventes_aujourd_hui DESC
+        GROUP BY u.username, u.nom_complet ORDER BY ventes_aujourd_hui DESC
     """, conn)
     conn.close()
     return df
@@ -489,8 +489,8 @@ else:
 
         st.markdown("#### Ventes du jour par vendeur")
         df_jour = get_ventes_jour()
-        if not df_jour.empty and df_jour['Ventes_aujourd_hui'].sum() > 0:
-            df_jour = df_jour[df_jour['Ventes_aujourd_hui'] > 0]
+        if not df_jour.empty and df_jour['ventes_aujourd_hui'].sum() > 0:
+            df_jour = df_jour[df_jour['ventes_aujourd_hui'] > 0]
             st.dataframe(df_jour, use_container_width=True, hide_index=True)
         else:
             st.info("Aucune vente aujourd'hui.")
