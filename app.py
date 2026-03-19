@@ -7,6 +7,15 @@ import secrets
 import io
 from datetime import datetime, timedelta
 
+try:
+    from streamlit_cookies_manager import EncryptedCookieManager
+    cookies = EncryptedCookieManager(prefix="appstock_", password="appstock_secret_key_2026")
+    if not cookies.ready():
+        st.stop()
+    USE_COOKIES = True
+except:
+    USE_COOKIES = False
+
 st.set_page_config(page_title="AppStock", page_icon="📡", layout="wide", initial_sidebar_state="expanded")
 
 FAV_B64 = "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAHw0lEQVR4nO3d0W4bRwyGUavI+7+yeuHWaJzGkaXZITn/OXcBWnQDJPzIle2+vQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMA+9/u9+hFgq7+qHwBaeJ/+GkAUAQAIJQDw0+LvCCCHAJDu14mvAYQQAIBQAkC03y37jgASCAC5vp7yGsDxBIBQj8x3DeBsAgAQSgBI9Phq7wjgYAJAnO/OdA3gVAIAEEoAyPLcOu8I4EgCQJBX5rgGcB4BAAglAKR4fYV3BHAYASDCqtmtAZxEADjf2qmtARxDAABCCQCHu2JhdwRwBgHgZNdNag3gAAIAEEoAONbVS7ojgOkEgDPtmc4awGgCABBKADjQzsXcEcBcAsBp9k9kDWAoAeAoVbNYA5hIAABCCQDnqF3DHQGMIwAcosP87fAM8DgBAAglAJygz+rd50ngjwSA8brN3G7PA78jAAChBIDZeq7bPZ8KPhEABus8Zzs/G7wTAKbqP2H7PyHhBAAglAAw0pTlespzkulW/QCw0hcD93bzpx1+4gLgHKY/fIsAAIQSAA5h/Yfv8heDkTZ8uCobHM8FABBKAABCCQBAKAEACCUAAKEEACCUAACEEgDm8RPWYAkBAAglAAxj/YdVBIBJTH9YSAAYw/SHtQQAIJQAMIP1H5YTAAYw/eEKAgAQSgDozvoPFxEAWjP94ToCQF+mP1xKAABCCQBNfbH++9+1wxICQEemP2wgALRj+sMeAgAQSgDoxfoP2wgAjZj+sJMAMIDpD1cQALrwbV+wmQDQgpc/sJ8AUM/0hxICABBKAChm/YcqAkAl0x8KCQBlTH+oJQAAoQSAGtZ/KCcAFDD9oQMBYDfTH5oQAIBQAsBW1n/oQwDYx/SHVgSgtZAfkGn6QwkB6O5+v5+RgTN+F3ASAWjk04j87y/v/9r+UGt4+QMNCUAvf5zyEzNg+kNPP6ofgH982vcf/IcNUOBpLoDZ+h8E1n9oywXQwotDvO1BYPpDZy6Ao7Q6CEx/aE4A6i0f2a0yALTlFVBr75vyc9O89r2Q9R/6cwEMcLvdXhma+w8C0x9GcAEUe3xWfvxy4kFQ/p8GfuUCmKf5QeDjB5jCBVDplVnZ8yDw8gcGcQE09fi47HMQmP4wiwugzNpXJa98vdBbj08IgM0EoKOnp/CL74U+/sUnHsD6D+N4BVTj6k9KN78XMv1hIn85a2yemK2+MmfJb3DD70i6OJ4LIMKLBwFwJJ8BFKh6YfL6JwTASVwAiRwEwJsLYL8+27eDAMK5ABqp2sodBJBJALbqvGvLAKQRgC4MX2AzAQAIJQD7+HZZoBUBAAglAJt0/vgXyCQA9bz/AUoIwA7Wf6AhAShm/QeqCMDlrP9ATwJQyfoPFBIAgFACcC3f/AW0JQAAoQTgQj7+BToTgBre/wDlBOAq1n+gOQEoYP0HOhAAgFACcAlf/Qn0JwAAoQRgPR//AiMIwFbe/wB9CMBi1n9gCgHYx/oPtCIAK1n/gUEEYBPrP9CNAACEEoBlfPMXMIsAAIQSgDV8/AuMIwCX8/4H6EkAFrD+AxMJwLWs/0BbArDA7XYz6IFxflQ/wDk+GvDxRkgVgM5cAOs5CIARBOAqGgA0JwAAoQQAIJQAAIQSAIBQAgAQSgAAQvlGsE02/LwgX3gKfIsLACCUAACEEgCAUAIAEEoAAEIJAEAoAQAIJQAAoQQAIJQAAIQSAIBQAgAQSgAAQgkAQCgBAAglAAChBAAglAAAhBIAgFACABBKAABCCQBAKAEACCUAAKEEACCUAACEEgCAUAIAEEoAAEIJAEAoAQAIJQAAoQQAIJQAAIQSAIBQAgAQSgAAQgkAQCgBAAglAAChBAAglAAAhBIAgFACABBKAABCCQBAKAEACCUAAKEEACCUAACEEgCAUAIAEEoAAEIJAEAoAQAIJQAAoQQAIJQAAIQSAIBQAgAQSgAAQgkAQCgBAAglAAChBAAglAAAhBIAgFACABBKAABCCQBAKAEACCUAAKEEACCUAACEEgCAUAIAEEoAAEIJAEAoAQAIJQAAoQQAIJQAAIQSAIBQAgAQSgAAQgkAQCgBAAglAAChBAAglAAAhBIAgFACABBKAABCCQBAKAEACCUAAKEEACCUAACEEgCAUAIAEEoAAEIJAEAoAQAIJQAAoQQAIJQAAIQSAIBQAgAQSgAAQgkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPB//gbYQfxUEvXJlwAAAABJRU5ErkJggg=="
@@ -207,6 +216,17 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
     if k not in st.session_state:
         st.session_state[k] = v
 
+# Restaurer session depuis cookies si disponible
+if USE_COOKIES and not st.session_state.connecte:
+    try:
+        if cookies.get("user"):
+            st.session_state.connecte = True
+            st.session_state.user = cookies["user"]
+            st.session_state.role = cookies["role"]
+            st.session_state.nom = cookies["nom"]
+    except:
+        pass
+
 # ═══ LOGIN ═══════════════════════════════════════════════════
 if not st.session_state.connecte:
     col1,col2,col3 = st.columns([1,1.1,1])
@@ -230,6 +250,11 @@ if not st.session_state.connecte:
                             st.session_state.user = res[3]
                             st.session_state.role = res[1]
                             st.session_state.nom = res[2]
+                            if USE_COOKIES:
+                                cookies["user"] = res[3]
+                                cookies["role"] = res[1]
+                                cookies["nom"] = res[2]
+                                cookies.save()
                             auto_notifs()
                             st.rerun()
                         else:
@@ -281,10 +306,18 @@ else:
             opts = ["Dashboard","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
         else:
             opts = ["Dashboard","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
-        choix = st.radio("", opts, label_visibility="collapsed")
+        choix = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
+            if USE_COOKIES:
+                try:
+                    cookies["user"] = ""
+                    cookies["role"] = ""
+                    cookies["nom"] = ""
+                    cookies.save()
+                except:
+                    pass
             st.rerun()
 
     # ══ DASHBOARD ════════════════════════════════════════════
@@ -633,6 +666,10 @@ else:
                         conn.commit()
                         conn.close()
                         st.success(f"Compte cree pour {nn} — connexion avec le telephone {nt}")
+                        # Vider les champs
+                        for k in ['nu','nn','nt','np_v']:
+                            if k in st.session_state:
+                                del st.session_state[k]
                         st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("Identifiant ou telephone deja utilise.")
