@@ -111,6 +111,10 @@ def init_db():
         h = bcrypt.hashpw("Madinatou1432".encode(), bcrypt.gensalt())
         c.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (?,?,?,?,?,?)",
                   ("admin","000000000",h.decode(),"admin","Administrateur",datetime.now().strftime("%Y-%m-%d")))
+    else:
+        # Toujours mettre à jour le mot de passe admin au démarrage
+        h = bcrypt.hashpw("Madinatou1432".encode(), bcrypt.gensalt())
+        c.execute("UPDATE users SET password=? WHERE username='admin'", (h.decode(),))
     conn.commit()
     conn.close()
 
