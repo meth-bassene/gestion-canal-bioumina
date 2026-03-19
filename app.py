@@ -108,7 +108,7 @@ def init_db():
         except: pass
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
-        h = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
+        h = bcrypt.hashpw("Madinatou1432".encode(), bcrypt.gensalt())
         c.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (?,?,?,?,?,?)",
                   ("admin","000000000",h.decode(),"admin","Administrateur",datetime.now().strftime("%Y-%m-%d")))
     conn.commit()
