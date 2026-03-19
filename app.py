@@ -219,17 +219,6 @@ def db():
     return conn
 
 
-    """Execute SQL and return DataFrame - compatible with psycopg2"""
-    cur = conn.cursor()
-    if params:
-        cur.execute(sql, params)
-    else:
-        cur.execute(sql)
-    cols = [desc[0] for desc in cur.description]
-    rows = cur.fetchall()
-    cur.close()
-    return pd.DataFrame(rows, columns=cols)
-
 def init_db():
     conn = db()
     c = conn.cursor()
