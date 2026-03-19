@@ -4,3 +4,4 @@ bcrypt
 openpyxl
 streamlit-qrcode-scanner
 streamlit-cookies-manager
+psycopg2-binary
