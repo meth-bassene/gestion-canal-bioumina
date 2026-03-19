@@ -3,3 +3,4 @@ pandas
 bcrypt
 openpyxl
 streamlit-qrcode-scanner
+streamlit-cookies-manager
