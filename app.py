@@ -888,26 +888,28 @@ else:
     
     st.divider()
     st.markdown("#### Changer le mot de passe")
-    old = st.text_input("Ancien mot de passe", type="password")
-    new1 = st.text_input("Nouveau mot de passe", type="password")
-    new2 = st.text_input("Confirmer le nouveau mot de passe", type="password")
+    ancien_pwd = st.text_input("Ancien mot de passe", type="password")
+    nouveau_pwd1 = st.text_input("Nouveau mot de passe", type="password")
+    nouveau_pwd2 = st.text_input("Confirmer le nouveau mot de passe", type="password")
     if st.button("Mettre a jour"):
-        if new1 != new2:
+        if nouveau_pwd1 != nouveau_pwd2:
             st.error("Les mots de passe ne correspondent pas.")
-        elif len(new1) < 6:
+        elif len(nouveau_pwd1) < 6:
             st.error("Minimum 6 caracteres.")
         else:
             conn = db()
             cur = conn.cursor()
             cur.execute("SELECT password FROM users WHERE username=?", (st.session_state.user,))
             res = cur.fetchone()
-            if res and bcrypt.checkpw(old.encode(), res[0].encode()):
-                h = bcrypt.hashpw(new1.encode(),bcrypt.gensalt())
-                cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(),st.session_state.user))
-                conn.commit()
-                st.success("Mot de passe mis a jour.")
-            else:
-                st.error("Ancien mot de passe incorrect.")
+            if res:
+                pwd_stored = res[0].encode() if isinstance(res[0], str) else res[0]
+                if bcrypt.checkpw(ancien_pwd.encode(), pwd_stored):
+                    h = bcrypt.hashpw(nouveau_pwd1.encode(), bcrypt.gensalt())
+                    cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), st.session_state.user))
+                    conn.commit()
+                    st.success("Mot de passe mis a jour.")
+                else:
+                    st.error("Ancien mot de passe incorrect.")
             conn.close()
         st.divider()
         st.markdown("#### Historique des modifications")
