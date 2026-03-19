@@ -188,6 +188,23 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 /* DATAFRAME */
 [data-testid="stDataFrame"] { border-radius:10px; overflow:hidden; }
 
+/* TRANSITION DOUCE entre pages */
+.main .block-container {
+    animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cacher le spinner Streamlit par défaut */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+/* Barre de progression en haut */
+.stProgress > div > div { background:#0a0a0a !important; }
+
 /* MOBILE RESPONSIVE */
 @media (max-width: 768px) {
     .stat-value { font-size:1.5rem !important; }
@@ -199,8 +216,9 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 </style>
 """, unsafe_allow_html=True)
 
-def db():
-    conn = psycopg2.connect(
+@st.cache_resource
+def get_db_connection():
+    return psycopg2.connect(
         host="aws-1-eu-west-1.pooler.supabase.com",
         port=5432,
         database="postgres",
@@ -208,6 +226,12 @@ def db():
         password=st.secrets["DB_PASSWORD"],
         sslmode="require"
     )
+
+def db():
+    conn = get_db_connection()
+    if conn.closed:
+        st.cache_resource.clear()
+        conn = get_db_connection()
     return conn
 
 def query_df(sql, conn, params=None):
