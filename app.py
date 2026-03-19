@@ -271,7 +271,7 @@ def get_stats():
 def get_ventes_jour():
     today = datetime.now().strftime("%Y-%m-%d")
     conn = db()
-    df = pd.read_sql(f"""
+    df = query_df(f"""
         SELECT u.nom_complet as Vendeur, COUNT(d.id) as Ventes_aujourd_hui,
                COALESCE(SUM(d.prix_total),0) as CA_aujourd_hui
         FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username
@@ -511,7 +511,7 @@ else:
 
         st.markdown("#### Dernieres Ventes")
         conn = db()
-        df_v = pd.read_sql("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
+        df_v = query_df("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
         conn.close()
         if not df_v.empty:
             df_v.columns = ["Numero","Client","Formule","Prix Formule","Prix Decodeur","Promo","Total FCFA","Date"]
@@ -617,7 +617,7 @@ else:
 
         with tab1:
             conn = db()
-            df_s = pd.read_sql("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
+            df_s = query_df("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
             conn.close()
             if not df_s.empty:
                 c1,c2 = st.columns([1,2])
@@ -702,7 +702,7 @@ else:
 
         with tab3:
             conn = db()
-            df_mod = pd.read_sql("SELECT numero,client_nom,client_tel,formule,prix_total FROM decodeurs WHERE statut='vendu'", conn)
+            df_mod = query_df("SELECT numero,client_nom,client_tel,formule,prix_total FROM decodeurs WHERE statut='vendu'", conn)
             conn.close()
             if df_mod.empty:
                 st.info("Aucune vente a modifier.")
@@ -755,7 +755,7 @@ else:
         st.divider()
         st.markdown("#### Renouveler un abonnement")
         conn = db()
-        df_renew = pd.read_sql("SELECT numero, client_nom, client_tel, formule, date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
+        df_renew = query_df("SELECT numero, client_nom, client_tel, formule, date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
         conn.close()
         if not df_renew.empty:
             renew_opts = [f"{r['client_nom']} — {r['numero']} (expire {r['date_expiration']})" for _,r in df_renew.iterrows()]
@@ -792,7 +792,7 @@ else:
 
         st.markdown("#### Tous les abonnements actifs")
         conn = db()
-        df_r = pd.read_sql("SELECT numero,client_nom,client_tel,formule,date_activation,date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
+        df_r = query_df("SELECT numero,client_nom,client_tel,formule,date_activation,date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
         conn.close()
         if not df_r.empty:
             df_r.columns = ["Numero","Client","Telephone","Formule","Date activation","Date expiration"]
@@ -825,7 +825,7 @@ else:
 
         with tab1:
             conn = db()
-            df_vend = pd.read_sql("""
+            df_vend = query_df("""
                 SELECT u.nom_complet,u.telephone,u.role,u.date_creation,
                        COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca
                 FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username AND d.statut='vendu'
@@ -868,7 +868,7 @@ else:
         with tab3:
             st.markdown("#### Modifier ou supprimer un vendeur")
             conn = db()
-            df_edit = pd.read_sql("SELECT username, nom_complet, telephone FROM users WHERE role='vendeur'", conn)
+            df_edit = query_df("SELECT username, nom_complet, telephone FROM users WHERE role='vendeur'", conn)
             conn.close()
             if df_edit.empty:
                 st.info("Aucun vendeur enregistre.")
@@ -928,7 +928,7 @@ else:
         with tab4:
             st.markdown("#### Generer un token de recuperation")
             conn = db()
-            df_u = pd.read_sql("SELECT username,nom_complet,telephone FROM users WHERE role='vendeur'", conn)
+            df_u = query_df("SELECT username,nom_complet,telephone FROM users WHERE role='vendeur'", conn)
             conn.close()
             if df_u.empty:
                 st.info("Aucun vendeur enregistre.")
@@ -956,7 +956,7 @@ else:
         with col_p2:
             date_fin = st.date_input("Au", value=datetime.now().date())
         conn = db()
-        df_rap = pd.read_sql(f"""
+        df_rap = query_df(f"""
             SELECT u.nom_complet,u.username,
                    COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca,
                    MAX(d.date_activation) as derniere_vente
@@ -981,7 +981,7 @@ else:
             for _,row in df_rap.iterrows():
                 with st.expander(f"{row['nom_complet']} — {int(row['ventes'])} vente(s) — {row['ca']:,.0f} FCFA"):
                     conn = db()
-                    df_dec = pd.read_sql(f"SELECT numero,statut,formule,prix_total,date_activation FROM decodeurs WHERE affecte_a='{row['username']}' ORDER BY date_activation DESC", conn)
+                    df_dec = query_df(f"SELECT numero,statut,formule,prix_total,date_activation FROM decodeurs WHERE affecte_a='{row['username']}' ORDER BY date_activation DESC", conn)
                     conn.close()
                     total = len(df_dec)
                     vendus_v = len(df_dec[df_dec['statut']=='vendu']) if not df_dec.empty else 0
@@ -1010,7 +1010,7 @@ else:
         if st.button("Telecharger sauvegarde complete", use_container_width=True):
             conn = db()
             df_save_dec = query_df("SELECT * FROM decodeurs", conn)
-            df_save_usr = pd.read_sql("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
+            df_save_usr = query_df("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
             df_save_notif = query_df("SELECT * FROM notifications", conn)
             conn.close()
             out = io.BytesIO()
@@ -1055,7 +1055,7 @@ else:
         st.divider()
         st.markdown("#### Historique des modifications")
         conn = db()
-        df_hist = pd.read_sql("SELECT decodeur_numero,champ_modifie,ancienne_valeur,nouvelle_valeur,modifie_par,date_modification FROM historique_modifications ORDER BY date_modification DESC LIMIT 50", conn)
+        df_hist = query_df("SELECT decodeur_numero,champ_modifie,ancienne_valeur,nouvelle_valeur,modifie_par,date_modification FROM historique_modifications ORDER BY date_modification DESC LIMIT 50", conn)
         conn.close()
         if not df_hist.empty:
             df_hist.columns = ["Decodeur","Champ modifie","Ancienne valeur","Nouvelle valeur","Modifie par","Date"]
