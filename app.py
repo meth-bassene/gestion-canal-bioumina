@@ -200,9 +200,14 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 """, unsafe_allow_html=True)
 
 def db():
-    DATABASE_URL = st.secrets["DATABASE_URL"]
-    conn = psycopg2.connect(DATABASE_URL)
-    conn.autocommit = False
+    conn = psycopg2.connect(
+        host="aws-1-eu-west-1.pooler.supabase.com",
+        port=5432,
+        database="postgres",
+        user="postgres.xcvfzkcwswvabygbrewy",
+        password=st.secrets["DB_PASSWORD"],
+        sslmode="require"
+    )
     return conn
 
 def init_db():
