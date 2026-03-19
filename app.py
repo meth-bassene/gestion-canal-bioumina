@@ -201,7 +201,8 @@ div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
 
 def db():
     DATABASE_URL = st.secrets["DATABASE_URL"]
-    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
     return conn
 
 def init_db():
