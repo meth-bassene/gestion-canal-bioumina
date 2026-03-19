@@ -341,7 +341,7 @@ def get_stats():
     c.execute("SELECT COALESCE(SUM(prix_total),0) FROM decodeurs WHERE statut='vendu'")
     ca = c.fetchone()[0]
     today = datetime.now().strftime("%Y-%m-%d")
-    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation::text LIKE %s", (f"{today}%",))
+    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation::text LIKE ?", (f"{today}%",))
     vj = c.fetchone()[0]
     conn.close()
     return dispo, vendus, ca, vj
@@ -390,7 +390,7 @@ def get_dormants():
 def notif_count(user):
     conn = db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM notifications WHERE lu=0 AND (destinataire=%s OR destinataire='tous')", (user,))
+    c.execute("SELECT COUNT(*) FROM notifications WHERE lu=0 AND (destinataire=? OR destinataire='tous')", (user,))
     n = c.fetchone()[0]
     conn.close()
     return n
@@ -398,7 +398,7 @@ def notif_count(user):
 def push_notif(message, type_n, destinataire="tous"):
     conn = db()
     c = conn.cursor()
-    c.execute("INSERT INTO notifications (message,type,destinataire,date_creation) VALUES (%s,%s,%s,%s)",
+    c.execute("INSERT INTO notifications (message,type,destinataire,date_creation) VALUES (?,?,?,?)",
               (message,type_n,destinataire,datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
     conn.close()
@@ -738,7 +738,7 @@ else:
                         cur = conn.cursor()
                         ok = doublons = 0
                         for num in nums:
-                            cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (%s,'disponible',%s,%s)",
+                            cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (?,'disponible',?,?)",
                                         (num,v_username,datetime.now().strftime("%Y-%m-%d %H:%M")))
                             ok += cur.rowcount
                             doublons += 1-cur.rowcount
@@ -770,7 +770,7 @@ else:
                                 cur = conn.cursor()
                                 ok = 0
                                 for num in st.session_state.scanned:
-                                    cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (%s,'disponible',%s,%s)",
+                                    cur.execute("INSERT OR IGNORE INTO decodeurs (numero,statut,affecte_a,date_ajout) VALUES (?,'disponible',?,?)",
                                                 (num,v_username,datetime.now().strftime("%Y-%m-%d %H:%M")))
                                     ok += cur.rowcount
                                 conn.commit()
@@ -934,7 +934,7 @@ else:
                         h = bcrypt.hashpw(np_v.encode(),bcrypt.gensalt())
                         conn = db()
                         cur = conn.cursor()
-                        cur.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (%s,%s,%s,%s,%s,%s)",
+                        cur.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (?,?,?,?,?,?)",
                                     (nu,nt,h.decode(),"vendeur",nn,datetime.now().strftime("%Y-%m-%d")))
                         conn.commit()
                         conn.close()
