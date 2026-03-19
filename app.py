@@ -253,7 +253,7 @@ def init_db():
     conn.close()
 
 def backup_to_supabase():
-    """Sauvegarde les données vers Supabase Storage"""
+    """Sauvegarde toutes les données vers Supabase"""
     try:
         conn = db()
         data = {}
@@ -267,14 +267,18 @@ def backup_to_supabase():
         if url and key:
             backup_json = json.dumps(data, default=str)
             headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-            # Sauvegarder dans Supabase Storage
-            r = requests.post(
-                f"{url}/storage/v1/object/backup/appstock_backup.json",
-                headers=headers,
-                data=backup_json
-            )
-            return r.status_code in [200, 201, 400]
-    except Exception as e:
+            # Essayer d'abord PUT puis POST
+            for method in ["PUT", "POST"]:
+                r = requests.request(
+                    method,
+                    f"{url}/storage/v1/object/backup/appstock_backup.json",
+                    headers=headers,
+                    data=backup_json
+                )
+                if r.status_code in [200, 201]:
+                    return True
+        return False
+    except Exception:
         return False
 
 def restore_from_supabase():
@@ -302,9 +306,9 @@ def restore_from_supabase():
             conn = db()
             c = conn.cursor()
             for table, rows in data.items():
-                if table == "users":
-                    continue  # Ne pas écraser les users
                 for row in rows:
+                    if table == "users" and row.get("username") == "admin":
+                        continue  # Ne pas écraser l'admin
                     cols = ", ".join(row.keys())
                     placeholders = ", ".join(["?" for _ in row])
                     vals = list(row.values())
@@ -733,6 +737,7 @@ else:
                             doublons += 1-cur.rowcount
                         conn.commit()
                         conn.close()
+                        backup_to_supabase()
                         st.success(f"{ok} decodeur(s) ajoute(s), {doublons} doublon(s) ignore(s).")
                     else:
                         st.error("Aucun numero valide.")
@@ -764,6 +769,7 @@ else:
                                     ok += cur.rowcount
                                 conn.commit()
                                 conn.close()
+                                backup_to_supabase()
                                 st.session_state.scanned = []
                                 st.success(f"{ok} decodeur(s) enregistre(s).")
                         with cb_col:
@@ -860,6 +866,7 @@ else:
                 conn.commit()
                 conn.close()
                 push_notif(f"Renouvellement : {renew_row['numero']} — {renew_row['client_nom']} ({new_formule_renew} — {prix_renew:,} FCFA)", "vente", "admin")
+                backup_to_supabase()
                 st.success(f"Renouvellement confirme ! Nouvelle expiration : {new_date_exp}")
                 st.rerun()
 
@@ -917,7 +924,13 @@ else:
             with c2:
                 nt = st.text_input("Numero de telephone")
                 np_v = st.text_input("Mot de passe initial", type="password")
-            if st.button("Creer le compte vendeur", use_container_width=True):
+            if st.session_state.get('vendeur_cree', False):
+                st.success("Compte vendeur cree avec succes !")
+                if st.button("Creer un autre vendeur", use_container_width=True):
+                    st.session_state.vendeur_cree = False
+                    st.rerun()
+            else:
+             if st.button("Creer le compte vendeur", use_container_width=True):
                 if nu and nn and nt and np_v:
                     try:
                         h = bcrypt.hashpw(np_v.encode(),bcrypt.gensalt())
@@ -927,8 +940,9 @@ else:
                                     (nu,nt,h.decode(),"vendeur",nn,datetime.now().strftime("%Y-%m-%d")))
                         conn.commit()
                         conn.close()
+                        backup_to_supabase()
                         st.success(f"Compte cree pour {nn} — connexion avec le telephone {nt}")
-                        # Vider les champs
+                        st.session_state.vendeur_cree = True
                         for k in ['nu','nn','nt','np_v']:
                             if k in st.session_state:
                                 del st.session_state[k]
@@ -936,7 +950,7 @@ else:
                     except Exception:
                         st.error("Identifiant ou telephone deja utilise.")
                 else:
-                    st.error("Remplissez tous les champs.")
+                        st.error("Remplissez tous les champs.")
 
         with tab3:
             st.markdown("#### Modifier ou supprimer un vendeur")
@@ -969,6 +983,7 @@ else:
                         cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), e_row['username']))
                     conn.commit()
                     conn.close()
+                    backup_to_supabase()
                     st.success(f"Vendeur {new_nom} mis a jour.")
                     st.rerun()
 
@@ -990,6 +1005,7 @@ else:
                             cur.execute("DELETE FROM users WHERE username=?", (e_row['username'],))
                             conn.commit()
                             conn.close()
+                            backup_to_supabase()
                             st.session_state.confirm_delete = False
                             st.success("Vendeur supprime.")
                             st.rerun()
