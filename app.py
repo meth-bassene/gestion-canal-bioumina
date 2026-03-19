@@ -95,10 +95,20 @@ st.markdown("""
     min-height:50px !important;
 }
 
-/* LABELS */
+/* LABELS — noir sauf dans sidebar et éléments blancs sur fond noir */
 div[data-testid="stWidgetLabel"] p { color:#0a0a0a !important; font-weight:500 !important; font-size:0.95rem !important; }
 div[data-testid="stMarkdownContainer"] p { color:#0a0a0a !important; }
 div[data-testid="stMarkdownContainer"] h4 { color:#0a0a0a !important; }
+/* Garder blanc dans sidebar */
+[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p { color:#ffffff !important; }
+[data-testid="stSidebar"] div[data-testid="stWidgetLabel"] p { color:#ffffff !important; }
+/* Garder blanc dans boutons */
+.stButton > button p, .stButton > button span, .stButton > button div { color:#ffffff !important; }
+/* Garder blanc dans prix-box et total-box */
+.prix-box p, .prix-box span, .prix-box div { color:#ffffff !important; }
+.total-box p, .total-box span, .total-box div { color:#ffffff !important; }
+/* Garder blanc dans token-box */
+.token-box { color:#ffffff !important; }
 
 /* CARDS */
 .card { background:#ffffff; border-radius:12px; padding:18px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.06); margin-bottom:14px; border:1px solid #e8e8e8; }
