@@ -1,12 +1,13 @@
 import streamlit as st
+import sqlite3
 import pandas as pd
 import bcrypt
 import os
 import secrets
 import io
+import json
 from datetime import datetime, timedelta
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import requests
 
 try:
     from streamlit_cookies_manager import EncryptedCookieManager
@@ -209,17 +210,15 @@ div[class*="StatusWidget"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-def db():
-    return psycopg2.connect(
-        host="aws-1-eu-west-1.pooler.supabase.com",
-        port=5432,
-        database="postgres",
-        user="postgres.xcvfzkcwswvabygbrewy",
-        password=st.secrets["DB_PASSWORD"],
-        sslmode="require"
-    )
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'appstock.db')
 
-def query_df(sql, conn, params=None):
+def db():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
+
+
     """Execute SQL and return DataFrame - compatible with psycopg2"""
     cur = conn.cursor()
     if params:
@@ -235,30 +234,100 @@ def init_db():
     conn = db()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY, username TEXT UNIQUE, telephone TEXT UNIQUE,
-        password TEXT, role TEXT DEFAULT 'vendeur', nom_complet TEXT, date_creation TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, telephone TEXT UNIQUE,
+        password TEXT, role TEXT DEFAULT "vendeur", nom_complet TEXT, date_creation TEXT,
         token TEXT, token_expiry TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS decodeurs (
-        id SERIAL PRIMARY KEY, numero TEXT UNIQUE, partenaire TEXT DEFAULT 'Canal+',
-        statut TEXT DEFAULT 'disponible', affecte_a TEXT, client_nom TEXT, client_tel TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, numero TEXT UNIQUE, partenaire TEXT DEFAULT "Canal+",
+        statut TEXT DEFAULT "disponible", affecte_a TEXT, client_nom TEXT, client_tel TEXT,
         formule TEXT, prix_formule REAL DEFAULT 0, prix_decodeur REAL DEFAULT 0,
         promo REAL DEFAULT 0, prix_total REAL, date_ajout TEXT, date_activation TEXT, date_expiration TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS historique_modifications (
-        id SERIAL PRIMARY KEY, decodeur_numero TEXT, champ_modifie TEXT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, decodeur_numero TEXT, champ_modifie TEXT,
         ancienne_valeur TEXT, nouvelle_valeur TEXT, modifie_par TEXT, date_modification TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS notifications (
-        id SERIAL PRIMARY KEY, message TEXT, type TEXT,
-        destinataire TEXT DEFAULT 'tous', lu INTEGER DEFAULT 0, date_creation TEXT)''')
+        id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT, type TEXT,
+        destinataire TEXT DEFAULT "tous", lu INTEGER DEFAULT 0, date_creation TEXT)''')
+    for col, typ in [("prix_formule","REAL DEFAULT 0"),("prix_decodeur","REAL DEFAULT 0"),("promo","REAL DEFAULT 0")]:
+        try:
+            c.execute(f"ALTER TABLE decodeurs ADD COLUMN {col} {typ}")
+        except: pass
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
         h = bcrypt.hashpw("Madinatou1432".encode(), bcrypt.gensalt())
-        c.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (%s,%s,%s,%s,%s,%s)",
+        c.execute("INSERT INTO users (username,telephone,password,role,nom_complet,date_creation) VALUES (?,?,?,?,?,?)",
                   ("admin","000000000",h.decode(),"admin","Administrateur",datetime.now().strftime("%Y-%m-%d")))
     else:
         h = bcrypt.hashpw("Madinatou1432".encode(), bcrypt.gensalt())
-        c.execute("UPDATE users SET password=%s WHERE username='admin'", (h.decode(),))
+        c.execute("UPDATE users SET password=? WHERE username='admin'", (h.decode(),))
     conn.commit()
     conn.close()
+
+def backup_to_supabase():
+    """Sauvegarde les données vers Supabase Storage"""
+    try:
+        conn = db()
+        data = {}
+        for table in ["users", "decodeurs", "notifications", "historique_modifications"]:
+            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+            data[table] = df.to_dict(orient="records")
+        conn.close()
+        
+        url = st.secrets.get("SUPABASE_URL", "")
+        key = st.secrets.get("SUPABASE_KEY", "")
+        if url and key:
+            backup_json = json.dumps(data, default=str)
+            headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            # Sauvegarder dans Supabase Storage
+            r = requests.post(
+                f"{url}/storage/v1/object/backup/appstock_backup.json",
+                headers=headers,
+                data=backup_json
+            )
+            return r.status_code in [200, 201, 400]
+    except Exception as e:
+        return False
+
+def restore_from_supabase():
+    """Restaure les données depuis Supabase si la DB locale est vide"""
+    try:
+        conn = db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM decodeurs")
+        count = c.fetchone()[0]
+        conn.close()
+        
+        if count > 0:
+            return False  # Données déjà présentes
+            
+        url = st.secrets.get("SUPABASE_URL", "")
+        key = st.secrets.get("SUPABASE_KEY", "")
+        if not url or not key:
+            return False
+            
+        headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+        r = requests.get(f"{url}/storage/v1/object/backup/appstock_backup.json", headers=headers)
+        
+        if r.status_code == 200:
+            data = r.json()
+            conn = db()
+            c = conn.cursor()
+            for table, rows in data.items():
+                if table == "users":
+                    continue  # Ne pas écraser les users
+                for row in rows:
+                    cols = ", ".join(row.keys())
+                    placeholders = ", ".join(["?" for _ in row])
+                    vals = list(row.values())
+                    try:
+                        c.execute(f"INSERT OR IGNORE INTO {table} ({cols}) VALUES ({placeholders})", vals)
+                    except:
+                        pass
+            conn.commit()
+            conn.close()
+            return True
+    except Exception:
+        return False
 
 init_db()
 
@@ -280,7 +349,7 @@ def get_stats():
 def get_ventes_jour():
     today = datetime.now().strftime("%Y-%m-%d")
     conn = db()
-    df = query_df(f"""
+    df = pd.read_sql_query(f"""
         SELECT u.nom_complet as Vendeur, COUNT(d.id) as Ventes_aujourd_hui,
                COALESCE(SUM(d.prix_total),0) as CA_aujourd_hui
         FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username
@@ -313,7 +382,7 @@ def get_dormants():
     conn = db()
     c = conn.cursor()
     limit = (datetime.now()-timedelta(days=30)).strftime("%Y-%m-%d")
-    c.execute("SELECT numero,affecte_a,date_ajout FROM decodeurs WHERE statut='disponible' AND date_ajout<=%s", (limit,))
+    c.execute("SELECT numero,affecte_a,date_ajout FROM decodeurs WHERE statut='disponible' AND date_ajout<=?", (limit,))
     rows = c.fetchall()
     conn.close()
     return rows
@@ -375,6 +444,11 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
 # Toujours forcer mode_token à False au démarrage
 st.session_state.mode_token = False
 
+# Restaurer depuis Supabase si nécessaire
+if 'restored' not in st.session_state:
+    st.session_state.restored = True
+    restore_from_supabase()
+
 # Restaurer session depuis cookies si disponible
 if USE_COOKIES and not st.session_state.connecte:
     try:
@@ -400,7 +474,7 @@ if not st.session_state.connecte:
                 if st.button("Se connecter", use_container_width=True):
                     conn = db()
                     cur = conn.cursor()
-                    cur.execute("SELECT password,role,nom_complet,username FROM users WHERE telephone=%s OR username=%s", (tel,tel))
+                    cur.execute("SELECT password,role,nom_complet,username FROM users WHERE telephone=? OR username=?", (tel,tel))
                     res = cur.fetchone()
                     conn.close()
                     if res:
@@ -434,11 +508,11 @@ if not st.session_state.connecte:
                 conn = db()
                 cur = conn.cursor()
                 now = datetime.now().strftime("%Y-%m-%d %H:%M")
-                cur.execute("SELECT username FROM users WHERE token=%s AND token_expiry>=%s", (tok.strip().upper(),now))
+                cur.execute("SELECT username FROM users WHERE token=? AND token_expiry>=?", (tok.strip().upper(),now))
                 res = cur.fetchone()
                 if res:
                     h = bcrypt.hashpw(new_p.encode(),bcrypt.gensalt())
-                    cur.execute("UPDATE users SET password=%s,token=NULL,token_expiry=NULL WHERE username=%s", (h.decode(),res[0]))
+                    cur.execute("UPDATE users SET password=?,token=NULL,token_expiry=NULL WHERE username=?", (h.decode(),res[0]))
                     conn.commit()
                     conn.close()
                     st.success("Mot de passe mis a jour !")
@@ -520,7 +594,7 @@ else:
 
         st.markdown("#### Dernieres Ventes")
         conn = db()
-        df_v = query_df("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
+        df_v = pd.read_sql_query("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
         conn.close()
         if not df_v.empty:
             df_v.columns = ["Numero","Client","Formule","Prix Formule","Prix Decodeur","Promo","Total FCFA","Date"]
@@ -532,7 +606,7 @@ else:
     elif choix == "Vente":
         st.markdown('<div class="page-title">Nouvelle Vente</div>', unsafe_allow_html=True)
         conn = db()
-        df_dispo = query_df("SELECT numero FROM decodeurs WHERE statut='disponible'", conn)
+        df_dispo = pd.read_sql_query("SELECT numero FROM decodeurs WHERE statut='disponible'", conn)
         conn.close()
 
         if df_dispo.empty:
@@ -609,6 +683,7 @@ else:
                         conn.commit()
                         conn.close()
                         push_notif(f"Vente : {v['numero']} vers {v['client_nom']} ({v['formule']} — {v['total']:,} FCFA)", "vente", "admin")
+                        backup_to_supabase()
                         st.session_state.confirmer_vente = False
                         st.session_state.vente_data = {}
                         st.success(f"Vente confirmee ! {v['numero']} vendu a {v['client_nom']} pour {v['total']:,} FCFA")
@@ -626,7 +701,7 @@ else:
 
         with tab1:
             conn = db()
-            df_s = query_df("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
+            df_s = pd.read_sql_query("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
             conn.close()
             if not df_s.empty:
                 c1,c2 = st.columns([1,2])
@@ -711,7 +786,7 @@ else:
 
         with tab3:
             conn = db()
-            df_mod = query_df("SELECT numero,client_nom,client_tel,formule,prix_total FROM decodeurs WHERE statut='vendu'", conn)
+            df_mod = pd.read_sql_query("SELECT numero,client_nom,client_tel,formule,prix_total FROM decodeurs WHERE statut='vendu'", conn)
             conn.close()
             if df_mod.empty:
                 st.info("Aucune vente a modifier.")
@@ -732,9 +807,9 @@ else:
                     cur = conn.cursor()
                     for champ,old,new in [("client_nom",row['client_nom'],new_nom),("client_tel",row['client_tel'],new_tel),("formule",row['formule'],new_formule),("prix_total",row['prix_total'],new_prix)]:
                         if str(old) != str(new):
-                            cur.execute("INSERT INTO historique_modifications VALUES (NULL,%s,%s,%s,%s,%s,%s)",
+                            cur.execute("INSERT INTO historique_modifications VALUES (NULL,?,?,?,?,?,?)",
                                         (num_sel,champ,str(old),str(new),st.session_state.user,datetime.now().strftime("%Y-%m-%d %H:%M")))
-                    cur.execute("UPDATE decodeurs SET client_nom=%s,client_tel=%s,formule=%s,prix_total=%s WHERE numero=%s",
+                    cur.execute("UPDATE decodeurs SET client_nom=?,client_tel=?,formule=?,prix_total=? WHERE numero=?",
                                 (new_nom,new_tel,new_formule,new_prix,num_sel))
                     conn.commit()
                     conn.close()
@@ -764,7 +839,7 @@ else:
         st.divider()
         st.markdown("#### Renouveler un abonnement")
         conn = db()
-        df_renew = query_df("SELECT numero, client_nom, client_tel, formule, date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
+        df_renew = pd.read_sql_query("SELECT numero, client_nom, client_tel, formule, date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
         conn.close()
         if not df_renew.empty:
             renew_opts = [f"{r['client_nom']} — {r['numero']} (expire {r['date_expiration']})" for _,r in df_renew.iterrows()]
@@ -791,7 +866,7 @@ else:
             if st.button("Confirmer le renouvellement", use_container_width=True):
                 conn = db()
                 cur = conn.cursor()
-                cur.execute("UPDATE decodeurs SET formule=%s, date_expiration=%s, date_activation=%s WHERE numero=%s",
+                cur.execute("UPDATE decodeurs SET formule=?, date_expiration=?, date_activation=? WHERE numero=?",
                             (new_formule_renew, new_date_exp, datetime.now().strftime("%Y-%m-%d %H:%M"), renew_row['numero']))
                 conn.commit()
                 conn.close()
@@ -801,7 +876,7 @@ else:
 
         st.markdown("#### Tous les abonnements actifs")
         conn = db()
-        df_r = query_df("SELECT numero,client_nom,client_tel,formule,date_activation,date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
+        df_r = pd.read_sql_query("SELECT numero,client_nom,client_tel,formule,date_activation,date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
         conn.close()
         if not df_r.empty:
             df_r.columns = ["Numero","Client","Telephone","Formule","Date activation","Date expiration"]
@@ -813,9 +888,9 @@ else:
         st.markdown('<div class="page-title">Notifications</div>', unsafe_allow_html=True)
         conn = db()
         cur = conn.cursor()
-        cur.execute("SELECT message,type,date_creation,lu FROM notifications WHERE destinataire=%s OR destinataire='tous' ORDER BY date_creation DESC LIMIT 60", (st.session_state.user,))
+        cur.execute("SELECT message,type,date_creation,lu FROM notifications WHERE destinataire=? OR destinataire='tous' ORDER BY date_creation DESC LIMIT 60", (st.session_state.user,))
         notifs = cur.fetchall()
-        cur.execute("UPDATE notifications SET lu=1 WHERE destinataire=%s OR destinataire='tous'", (st.session_state.user,))
+        cur.execute("UPDATE notifications SET lu=1 WHERE destinataire=? OR destinataire='tous'", (st.session_state.user,))
         conn.commit()
         conn.close()
         if not notifs:
@@ -834,7 +909,7 @@ else:
 
         with tab1:
             conn = db()
-            df_vend = query_df("""
+            df_vend = pd.read_sql_query("""
                 SELECT u.nom_complet,u.telephone,u.role,u.date_creation,
                        COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca
                 FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username AND d.statut='vendu'
@@ -869,7 +944,7 @@ else:
                             if k in st.session_state:
                                 del st.session_state[k]
                         st.rerun()
-                    except psycopg2.errors.UniqueViolation:
+                    except Exception:
                         st.error("Identifiant ou telephone deja utilise.")
                 else:
                     st.error("Remplissez tous les champs.")
@@ -877,7 +952,7 @@ else:
         with tab3:
             st.markdown("#### Modifier ou supprimer un vendeur")
             conn = db()
-            df_edit = query_df("SELECT username, nom_complet, telephone FROM users WHERE role='vendeur'", conn)
+            df_edit = pd.read_sql_query("SELECT username, nom_complet, telephone FROM users WHERE role='vendeur'", conn)
             conn.close()
             if df_edit.empty:
                 st.info("Aucun vendeur enregistre.")
@@ -898,11 +973,11 @@ else:
                 if st.button("Sauvegarder les modifications", use_container_width=True, key="btn_save_vendeur"):
                     conn = db()
                     cur = conn.cursor()
-                    cur.execute("UPDATE users SET nom_complet=%s, telephone=%s WHERE username=%s",
+                    cur.execute("UPDATE users SET nom_complet=?, telephone=? WHERE username=?",
                                 (new_nom, new_tel, e_row['username']))
                     if new_pwd_edit:
                         h = bcrypt.hashpw(new_pwd_edit.encode(), bcrypt.gensalt())
-                        cur.execute("UPDATE users SET password=%s WHERE username=%s", (h.decode(), e_row['username']))
+                        cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), e_row['username']))
                     conn.commit()
                     conn.close()
                     st.success(f"Vendeur {new_nom} mis a jour.")
@@ -923,7 +998,7 @@ else:
                         if st.button("Oui supprimer", use_container_width=True, key="btn_confirm_del"):
                             conn = db()
                             cur = conn.cursor()
-                            cur.execute("DELETE FROM users WHERE username=%s", (e_row['username'],))
+                            cur.execute("DELETE FROM users WHERE username=?", (e_row['username'],))
                             conn.commit()
                             conn.close()
                             st.session_state.confirm_delete = False
@@ -937,7 +1012,7 @@ else:
         with tab4:
             st.markdown("#### Generer un token de recuperation")
             conn = db()
-            df_u = query_df("SELECT username,nom_complet,telephone FROM users WHERE role='vendeur'", conn)
+            df_u = pd.read_sql_query("SELECT username,nom_complet,telephone FROM users WHERE role='vendeur'", conn)
             conn.close()
             if df_u.empty:
                 st.info("Aucun vendeur enregistre.")
@@ -950,7 +1025,7 @@ else:
                     expiry = (datetime.now()+timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
                     conn = db()
                     cur = conn.cursor()
-                    cur.execute("UPDATE users SET token=%s,token_expiry=%s WHERE username=%s", (token,expiry,u_name))
+                    cur.execute("UPDATE users SET token=?,token_expiry=? WHERE username=?", (token,expiry,u_name))
                     conn.commit()
                     conn.close()
                     st.markdown(f'<div class="token-box">{token}</div>', unsafe_allow_html=True)
@@ -965,7 +1040,7 @@ else:
         with col_p2:
             date_fin = st.date_input("Au", value=datetime.now().date())
         conn = db()
-        df_rap = query_df(f"""
+        df_rap = pd.read_sql_query(f"""
             SELECT u.nom_complet,u.username,
                    COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca,
                    MAX(d.date_activation) as derniere_vente
@@ -990,7 +1065,7 @@ else:
             for _,row in df_rap.iterrows():
                 with st.expander(f"{row['nom_complet']} — {int(row['ventes'])} vente(s) — {row['ca']:,.0f} FCFA"):
                     conn = db()
-                    df_dec = query_df(f"SELECT numero,statut,formule,prix_total,date_activation FROM decodeurs WHERE affecte_a='{row['username']}' ORDER BY date_activation DESC", conn)
+                    df_dec = pd.read_sql_query(f"SELECT numero,statut,formule,prix_total,date_activation FROM decodeurs WHERE affecte_a='{row['username']}' ORDER BY date_activation DESC", conn)
                     conn.close()
                     total = len(df_dec)
                     vendus_v = len(df_dec[df_dec['statut']=='vendu']) if not df_dec.empty else 0
@@ -1018,9 +1093,9 @@ else:
         st.markdown("#### Sauvegarde des donnees")
         if st.button("Telecharger sauvegarde complete", use_container_width=True):
             conn = db()
-            df_save_dec = query_df("SELECT * FROM decodeurs", conn)
-            df_save_usr = query_df("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
-            df_save_notif = query_df("SELECT * FROM notifications", conn)
+            df_save_dec = pd.read_sql_query("SELECT * FROM decodeurs", conn)
+            df_save_usr = pd.read_sql_query("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
+            df_save_notif = pd.read_sql_query("SELECT * FROM notifications", conn)
             conn.close()
             out = io.BytesIO()
             with pd.ExcelWriter(out, engine='openpyxl') as w:
@@ -1049,13 +1124,13 @@ else:
             else:
                 conn = db()
                 cur = conn.cursor()
-                cur.execute("SELECT password FROM users WHERE username=%s", (st.session_state.user,))
+                cur.execute("SELECT password FROM users WHERE username=?", (st.session_state.user,))
                 res = cur.fetchone()
                 if res:
                     pwd_stored = res[0].encode() if isinstance(res[0], str) else res[0]
                     if bcrypt.checkpw(ancien_pwd.encode(), pwd_stored):
                         h = bcrypt.hashpw(nouveau_pwd1.encode(), bcrypt.gensalt())
-                        cur.execute("UPDATE users SET password=%s WHERE username=%s", (h.decode(), st.session_state.user))
+                        cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), st.session_state.user))
                         conn.commit()
                         st.success("Mot de passe mis a jour.")
                     else:
@@ -1064,7 +1139,7 @@ else:
         st.divider()
         st.markdown("#### Historique des modifications")
         conn = db()
-        df_hist = query_df("SELECT decodeur_numero,champ_modifie,ancienne_valeur,nouvelle_valeur,modifie_par,date_modification FROM historique_modifications ORDER BY date_modification DESC LIMIT 50", conn)
+        df_hist = pd.read_sql_query("SELECT decodeur_numero,champ_modifie,ancienne_valeur,nouvelle_valeur,modifie_par,date_modification FROM historique_modifications ORDER BY date_modification DESC LIMIT 50", conn)
         conn.close()
         if not df_hist.empty:
             df_hist.columns = ["Decodeur","Champ modifie","Ancienne valeur","Nouvelle valeur","Modifie par","Date"]
