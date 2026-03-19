@@ -30,7 +30,14 @@ st.markdown("""
 /* SIDEBAR */
 [data-testid="stSidebar"] { background:#0a0a0a !important; }
 [data-testid="stSidebar"] * { color:#ffffff !important; }
-[data-testid="stSidebar"] .stRadio label { padding:8px 12px; border-radius:6px; display:block; }
+[data-testid="stSidebar"] .stRadio label { 
+    padding:14px 16px; border-radius:8px; display:block; 
+    font-size:1rem; margin-bottom:4px; cursor:pointer;
+    transition: background 0.15s;
+}
+[data-testid="stSidebar"] .stRadio label:hover { background:#1a1a1a; }
+[data-testid="stSidebar"] .stRadio label:active { background:#333; }
+.stButton > button { min-height:48px; font-size:1rem !important; }
 [data-testid="stSidebar"] .stRadio label:hover { background:#1a1a1a; }
 /* BOUTONS */
 .stButton > button { background:#0a0a0a !important; color:#ffffff !important; border:none !important; border-radius:8px !important; font-weight:600 !important; }
@@ -72,7 +79,10 @@ st.markdown("""
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'appstock.db')
 
 def db():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    return conn
 
 def init_db():
     conn = db()
@@ -601,6 +611,44 @@ else:
                 for a in urgents:
                     wa = wa_link(a['tel'],a['client'],a['jours'])
                     st.markdown(f'<div class="alerte jaune"><b>{a["client"]}</b><br>Decodeur {a["numero"]} — Tel {a["tel"]}<br>Expire dans {a["jours"]} jours<br><a href="{wa}" target="_blank" class="wa-btn">WhatsApp</a></div>', unsafe_allow_html=True)
+        st.divider()
+        st.markdown("#### Renouveler un abonnement")
+        conn = db()
+        df_renew = pd.read_sql_query("SELECT numero, client_nom, client_tel, formule, date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
+        conn.close()
+        if not df_renew.empty:
+            renew_opts = [f"{r['client_nom']} — {r['numero']} (expire {r['date_expiration']})" for _,r in df_renew.iterrows()]
+            renew_sel = st.selectbox("Choisir le client a renouveler", renew_opts)
+            renew_idx = renew_opts.index(renew_sel)
+            renew_row = df_renew.iloc[renew_idx]
+            
+            rc1, rc2 = st.columns(2)
+            with rc1:
+                flist = list(FORMULES.keys())
+                fidx = flist.index(renew_row['formule']) if renew_row['formule'] in flist else 0
+                new_formule_renew = st.selectbox("Nouvelle formule", flist, index=fidx, key="renew_formule")
+                new_duree_renew = st.selectbox("Duree", ["1 mois","3 mois","6 mois","12 mois"], key="renew_duree")
+            with rc2:
+                prix_renew = FORMULES[new_formule_renew]
+                new_date_exp = (datetime.now() + timedelta(days={"1 mois":30,"3 mois":90,"6 mois":180,"12 mois":365}[new_duree_renew])).strftime("%Y-%m-%d")
+                st.markdown(f"""
+                <div class="total-box">
+                    <div class="plabel">Prix renouvellement</div>
+                    <div class="pmontant">{prix_renew:,} FCFA</div>
+                    <div style="color:#fff;font-size:0.8rem;margin-top:4px;">Nouvelle expiration : {new_date_exp}</div>
+                </div>""", unsafe_allow_html=True)
+            
+            if st.button("Confirmer le renouvellement", use_container_width=True):
+                conn = db()
+                cur = conn.cursor()
+                cur.execute("UPDATE decodeurs SET formule=?, date_expiration=?, date_activation=? WHERE numero=?",
+                            (new_formule_renew, new_date_exp, datetime.now().strftime("%Y-%m-%d %H:%M"), renew_row['numero']))
+                conn.commit()
+                conn.close()
+                push_notif(f"Renouvellement : {renew_row['numero']} — {renew_row['client_nom']} ({new_formule_renew} — {prix_renew:,} FCFA)", "vente", "admin")
+                st.success(f"Renouvellement confirme ! Nouvelle expiration : {new_date_exp}")
+                st.rerun()
+
         st.markdown("#### Tous les abonnements actifs")
         conn = db()
         df_r = pd.read_sql_query("SELECT numero,client_nom,client_tel,formule,date_activation,date_expiration FROM decodeurs WHERE statut='vendu' ORDER BY date_expiration ASC", conn)
@@ -816,7 +864,30 @@ else:
     # ══ PARAMETRES ══════════════════════════════════════════
     elif choix == "Parametres" and st.session_state.role == "admin":
         st.markdown('<div class="page-title">Parametres</div>', unsafe_allow_html=True)
-        st.markdown("#### Changer le mot de passe")
+        # Bouton sauvegarde complète
+    st.markdown("#### Sauvegarde des donnees")
+    if st.button("Telecharger sauvegarde complete", use_container_width=True):
+        conn = db()
+        df_save_dec = pd.read_sql_query("SELECT * FROM decodeurs", conn)
+        df_save_usr = pd.read_sql_query("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
+        df_save_notif = pd.read_sql_query("SELECT * FROM notifications", conn)
+        conn.close()
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine='openpyxl') as w:
+            df_save_dec.to_excel(w, index=False, sheet_name="Decodeurs")
+            df_save_usr.to_excel(w, index=False, sheet_name="Vendeurs")
+            df_save_notif.to_excel(w, index=False, sheet_name="Notifications")
+        st.download_button(
+            "Cliquez ici pour telecharger",
+            out.getvalue(),
+            f"sauvegarde_appstock_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_sauvegarde"
+        )
+        st.success("Sauvegarde prete ! Gardez ce fichier en lieu sur.")
+    
+    st.divider()
+    st.markdown("#### Changer le mot de passe")
         old = st.text_input("Ancien mot de passe", type="password")
         new1 = st.text_input("Nouveau mot de passe", type="password")
         new2 = st.text_input("Confirmer le nouveau mot de passe", type="password")
