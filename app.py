@@ -276,7 +276,7 @@ def get_ventes_jour():
                COALESCE(SUM(d.prix_total),0) as CA_aujourd_hui
         FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username
             AND d.statut='vendu' AND d.date_activation::text LIKE '{today}%'
-        GROUP BY u.username ORDER BY Ventes_aujourd_hui DESC
+        GROUP BY u.username, u.nom_complet ORDER BY Ventes_aujourd_hui DESC
     """, conn)
     conn.close()
     return df
@@ -829,7 +829,7 @@ else:
                 SELECT u.nom_complet,u.telephone,u.role,u.date_creation,
                        COUNT(d.id) as ventes, COALESCE(SUM(d.prix_total),0) as ca
                 FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username AND d.statut='vendu'
-                GROUP BY u.username ORDER BY ca DESC
+                GROUP BY u.username, u.nom_complet ORDER BY ca DESC
             """, conn)
             conn.close()
             if not df_vend.empty:
@@ -962,7 +962,7 @@ else:
                    MAX(d.date_activation) as derniere_vente
             FROM users u LEFT JOIN decodeurs d ON d.affecte_a=u.username AND d.statut='vendu'
                 AND d.date_activation>='{date_debut}' AND d.date_activation<='{date_fin} 23:59'
-            GROUP BY u.username ORDER BY ca DESC
+            GROUP BY u.username, u.nom_complet ORDER BY ca DESC
         """, conn)
         conn.close()
         if not df_rap.empty:
