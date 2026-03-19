@@ -210,6 +210,18 @@ def db():
     )
     return conn
 
+def query_df(sql, conn, params=None):
+    """Execute SQL and return DataFrame - compatible with psycopg2"""
+    cur = conn.cursor()
+    if params:
+        cur.execute(sql, params)
+    else:
+        cur.execute(sql)
+    cols = [desc[0] for desc in cur.description]
+    rows = cur.fetchall()
+    cur.close()
+    return pd.DataFrame(rows, columns=cols)
+
 def init_db():
     conn = db()
     c = conn.cursor()
@@ -511,7 +523,7 @@ else:
     elif choix == "Vente":
         st.markdown('<div class="page-title">Nouvelle Vente</div>', unsafe_allow_html=True)
         conn = db()
-        df_dispo = pd.read_sql("SELECT numero FROM decodeurs WHERE statut='disponible'", conn)
+        df_dispo = query_df("SELECT numero FROM decodeurs WHERE statut='disponible'", conn)
         conn.close()
 
         if df_dispo.empty:
@@ -997,9 +1009,9 @@ else:
         st.markdown("#### Sauvegarde des donnees")
         if st.button("Telecharger sauvegarde complete", use_container_width=True):
             conn = db()
-            df_save_dec = pd.read_sql("SELECT * FROM decodeurs", conn)
+            df_save_dec = query_df("SELECT * FROM decodeurs", conn)
             df_save_usr = pd.read_sql("SELECT username, nom_complet, telephone, role, date_creation FROM users", conn)
-            df_save_notif = pd.read_sql("SELECT * FROM notifications", conn)
+            df_save_notif = query_df("SELECT * FROM notifications", conn)
             conn.close()
             out = io.BytesIO()
             with pd.ExcelWriter(out, engine='openpyxl') as w:
