@@ -207,7 +207,40 @@ div[class*="StatusWidget"] { display: none !important; }
     .stTextInput input, .stNumberInput input { min-height:54px !important; font-size:1.05rem !important; }
     [data-testid="stSidebar"] .stRadio label { min-height:58px !important; font-size:1.1rem !important; }
 }
+
+/* BOUTON MENU FLOTTANT MOBILE */
+.menu-flottant {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    background: #0a0a0a;
+    color: #ffffff;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    text-decoration: none;
+    display: inline-block;
+}
+.menu-flottant:hover { background: #333; }
 </style>
+""", unsafe_allow_html=True)
+
+# Bouton menu flottant pour mobile
+st.markdown("""
+<script>
+function toggleMenu() {
+    var sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+    if (sidebar) {
+        sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+    }
+}
+</script>
+<button class="menu-flottant" onclick="toggleMenu()">☰ Menu</button>
 """, unsafe_allow_html=True)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'appstock.db')
