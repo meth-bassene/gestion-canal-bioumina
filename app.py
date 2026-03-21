@@ -541,7 +541,10 @@ else:
     """, unsafe_allow_html=True)
 
     # Menu horizontal scrollable
-    choix = st.selectbox("", opts, label_visibility="collapsed", key="menu_choix")
+    nav_idx = opts.index(st.session_state.get("nav_choix", opts[0])) if st.session_state.get("nav_choix") in opts else 0
+    choix = st.selectbox("", opts, label_visibility="collapsed", key="menu_choix", index=nav_idx)
+    if "nav_choix" in st.session_state:
+        del st.session_state["nav_choix"]
 
     # Bouton déconnexion compact
     col_deco = st.columns([4,1])[1]
@@ -569,7 +572,7 @@ else:
         idx = opts.index(choix) if choix in opts else 0
         choix_sidebar = st.radio("", opts, label_visibility="collapsed", key="menu_sidebar", index=idx)
         if choix_sidebar != choix:
-            st.session_state.menu_choix = choix_sidebar
+            st.session_state["nav_choix"] = choix_sidebar
             st.rerun()
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
