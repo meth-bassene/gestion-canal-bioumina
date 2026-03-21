@@ -584,9 +584,9 @@ else:
                     pass
             st.rerun()
 
-    # MENU MOBILE — header + selectbox
+    # MENU MOBILE — toujours visible
     st.markdown(f"""
-    <div style="background:#0a0a0a;padding:10px 16px;margin:-1rem -1rem 0.5rem -1rem;display:flex;align-items:center;justify-content:space-between;">
+    <div class="mobile-header">
         <img src="data:image/png;base64,{LOGO_B64}" style="height:36px;width:auto;">
         <div style="color:#fff;text-align:right;">
             <div style="font-size:0.68rem;opacity:0.5;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
@@ -594,7 +594,6 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    choix = st.session_state.get("menu_choix", opts[0])
 
     # ══ DASHBOARD ════════════════════════════════════════════
     if choix == "Accueil":
@@ -676,7 +675,7 @@ else:
         st.markdown('<div class="page-title">Nouvelle Vente</div>', unsafe_allow_html=True)
         conn = db()
         if st.session_state.role == "admin":
-            df_dispo = pd.read_sql_query("SELECT numero FROM decodeurs WHERE statut='disponible'", conn)
+            df_dispo = pd.read_sql_query("SELECT numero FROM decodeurs WHERE statut='disponible' AND (affecte_a='admin' OR affecte_a IS NULL OR affecte_a='')", conn)
         else:
             df_dispo = pd.read_sql_query(f"SELECT numero FROM decodeurs WHERE statut='disponible' AND affecte_a='{st.session_state.user}'", conn)
         conn.close()
@@ -773,7 +772,10 @@ else:
 
         with tab1:
             conn = db()
-            df_s = pd.read_sql_query("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
+            if st.session_state.role == "admin":
+                df_s = pd.read_sql_query("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
+            else:
+                df_s = pd.read_sql_query(f"SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs WHERE affecte_a='{st.session_state.user}' ORDER BY date_ajout DESC", conn)
             conn.close()
             if not df_s.empty:
                 c1,c2,c3 = st.columns([1,1,2])
