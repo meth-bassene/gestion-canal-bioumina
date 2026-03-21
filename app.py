@@ -38,24 +38,9 @@ st.markdown("""
 .stApp { background:#f4f4f4 !important; }
 
 /* SIDEBAR — grande et tactile */
-[data-testid="stSidebar"] { background:#0a0a0a !important; }
-[data-testid="stSidebar"] * { color:#ffffff !important; }
-[data-testid="stSidebar"] .stRadio > div { gap:2px !important; }
-[data-testid="stSidebar"] .stRadio label {
-    padding:16px 20px !important;
-    border-radius:10px !important;
-    display:block !important;
-    font-size:1.05rem !important;
-    font-weight:500 !important;
-    margin-bottom:2px !important;
-    cursor:pointer !important;
-    min-height:52px !important;
-    display:flex !important;
-    align-items:center !important;
-    transition:background 0.1s !important;
-}
-[data-testid="stSidebar"] .stRadio label:hover,
-[data-testid="stSidebar"] .stRadio label:active { background:#1f1f1f !important; }
+/* Sidebar cachée — navigation en haut */
+[data-testid="stSidebar"] { display: none !important; }
+section[data-testid="stSidebarContent"] { display: none !important; }
 
 /* BOUTONS — grands et tactiles */
 .stButton > button {
@@ -213,16 +198,7 @@ div[class*="StatusWidget"] { display: none !important; }
     .mobile-select { display: block !important; }
 }
 
-/* Sur ordinateur — cacher menu mobile */
-.mobile-nav {
-    display: none;
-    background: #0a0a0a;
-    padding: 10px 16px;
-    align-items: center;
-    justify-content: space-between;
-    margin: -1rem -1rem 0.5rem -1rem;
-}
-.mobile-select { display: none; margin-bottom: 1rem; }
+
 
 </style>
 """, unsafe_allow_html=True)
@@ -269,6 +245,18 @@ def init_db():
     conn.commit()
     conn.close()
 
+def create_supabase_bucket():
+    """Créer le bucket Supabase si inexistant"""
+    try:
+        url = st.secrets.get("SUPABASE_URL", "")
+        key = st.secrets.get("SUPABASE_KEY", "")
+        if url and key:
+            headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            requests.post(f"{url}/storage/v1/bucket", headers=headers,
+                json={"id": "backup", "name": "backup", "public": False})
+    except Exception:
+        pass
+
 def backup_to_supabase():
     """Sauvegarde toutes les données vers Supabase"""
     try:
@@ -284,7 +272,6 @@ def backup_to_supabase():
         if url and key:
             backup_json = json.dumps(data, default=str)
             headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-            # Essayer d'abord PUT puis POST
             for method in ["PUT", "POST"]:
                 r = requests.request(
                     method,
@@ -294,6 +281,14 @@ def backup_to_supabase():
                 )
                 if r.status_code in [200, 201]:
                     return True
+            # Créer le bucket et réessayer
+            create_supabase_bucket()
+            r = requests.post(
+                f"{url}/storage/v1/object/backup/appstock_backup.json",
+                headers=headers,
+                data=backup_json
+            )
+            return r.status_code in [200, 201]
         return False
     except Exception:
         return False
@@ -541,21 +536,30 @@ else:
     # NAVIGATION
     notif_lbl = f"Notifications {'(!)' if nc>0 else ''}"
     if st.session_state.role=="admin":
-        opts = ["Dashboard","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
+        opts = ["Accueil","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
     else:
-        opts = ["Dashboard","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
+        opts = ["Accueil","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
 
-    # SIDEBAR — navigation ordinateur
+    # SIDEBAR cachée complètement
     with st.sidebar:
-        st.markdown(f'<img src="data:image/png;base64,{LOGO_B64}" style="width:100%;display:block;">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <hr style="border-color:#1a1a1a;margin:8px 0 12px;">
-        <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{'ADMIN' if st.session_state.role=='admin' else 'VENDEUR'}</div>
-        <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
-        """, unsafe_allow_html=True)
-        choix = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
-        st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
-        if st.button("Deconnexion", use_container_width=True):
+        st.markdown("Navigation disponible en haut de page.")
+
+    # MENU UNIQUE EN HAUT — fonctionne partout
+    st.markdown(f"""
+    <div style="background:#0a0a0a;padding:12px 16px;margin:-1rem -1rem 1rem -1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <img src="data:image/png;base64,{LOGO_B64}" style="height:38px;width:auto;flex-shrink:0;">
+        <div style="color:#fff;font-size:0.8rem;text-align:right;flex-shrink:0;">
+            <div style="opacity:0.5;font-size:0.68rem;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
+            <div style="font-weight:600;">{st.session_state.nom}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_menu, col_deco = st.columns([5, 1])
+    with col_menu:
+        choix = st.selectbox("", opts, label_visibility="collapsed", key="menu_choix")
+    with col_deco:
+        if st.button("Exit", use_container_width=True):
             st.session_state.connecte = False
             if USE_COOKIES:
                 try:
@@ -567,29 +571,11 @@ else:
                     pass
             st.rerun()
 
-    # MENU MOBILE — visible seulement sur petit ecran
-    st.markdown(f"""
-    <div class="mobile-nav">
-        <img src="data:image/png;base64,{LOGO_B64}" style="height:36px;width:auto;">
-        <div style="color:#fff;font-size:0.8rem;">
-            <span style="opacity:0.5;font-size:0.7rem;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</span>
-            <b style="display:block;">{st.session_state.nom}</b>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Selectbox mobile — caché sur ordinateur
-    st.markdown('<div class="mobile-select">', unsafe_allow_html=True)
-    choix_mobile = st.selectbox("Navigation", opts, label_visibility="collapsed", key="menu_mobile")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Utiliser choix mobile si on est sur mobile
-    if choix_mobile != opts[0] or "menu_choix" not in st.session_state:
-        choix = choix_mobile
-
     # ══ DASHBOARD ════════════════════════════════════════════
-    if choix == "Dashboard":
-        st.markdown('<div class="page-title">Dashboard</div>', unsafe_allow_html=True)
+    if choix == "Accueil":
+        heure = datetime.now().hour
+        salut = "Bonjour" if heure < 12 else "Bon après-midi" if heure < 18 else "Bonsoir"
+        st.markdown(f'<div class="page-title">{salut}, {st.session_state.nom} ! 👋</div>', unsafe_allow_html=True)
         dispo,vendus,ca,vj = get_stats()
         alertes = get_alertes()
         dormants = get_dormants()
@@ -607,6 +593,7 @@ else:
         df_jour = get_ventes_jour()
         if not df_jour.empty and df_jour['ventes_jour'].sum() > 0:
             df_jour = df_jour[df_jour['ventes_jour'] > 0]
+            df_jour.columns = ['Vendeur', 'Ventes aujourd hui', 'CA (FCFA)']
             st.dataframe(df_jour, use_container_width=True, hide_index=True)
         else:
             st.info("Aucune vente aujourd'hui.")
@@ -628,6 +615,23 @@ else:
             st.markdown("#### Decodeurs Dormants (plus d'1 mois)")
             for num,vendeur,date_ajout in mes_dormants[:4]:
                 st.markdown(f'<div class="alerte jaune"><b>{num}</b> — {vendeur or "Non affecte"} — Ajoute le {date_ajout}</div>', unsafe_allow_html=True)
+
+        # Statistiques mensuelles
+        if st.session_state.role == "admin":
+            st.markdown("#### Ventes par mois")
+            conn = db()
+            df_mois = pd.read_sql_query("""
+                SELECT substr(date_activation,1,7) as mois,
+                       COUNT(*) as ventes,
+                       COALESCE(SUM(prix_total),0) as ca
+                FROM decodeurs WHERE statut='vendu' AND date_activation IS NOT NULL
+                GROUP BY substr(date_activation,1,7)
+                ORDER BY mois DESC LIMIT 6
+            """, conn)
+            conn.close()
+            if not df_mois.empty:
+                df_mois.columns = ["Mois","Nombre ventes","CA FCFA"]
+                st.dataframe(df_mois, use_container_width=True, hide_index=True)
 
         st.markdown("#### Dernieres Ventes")
         conn = db()
@@ -744,13 +748,17 @@ else:
             df_s = pd.read_sql_query("SELECT numero,statut,affecte_a,client_nom,formule,prix_total,date_ajout,date_expiration FROM decodeurs ORDER BY date_ajout DESC", conn)
             conn.close()
             if not df_s.empty:
-                c1,c2 = st.columns([1,2])
+                c1,c2,c3 = st.columns([1,1,2])
                 with c1:
                     filtre = st.selectbox("Filtrer par statut", ["Tous","disponible","vendu"])
                 with c2:
-                    rech = st.text_input("Rechercher un numero ou client")
+                    filtre_formule = st.selectbox("Formule", ["Toutes"] + list(FORMULES.keys()))
+                with c3:
+                    rech = st.text_input("Rechercher un numero, client ou vendeur")
                 if filtre != "Tous":
                     df_s = df_s[df_s['statut']==filtre]
+                if filtre_formule != "Toutes":
+                    df_s = df_s[df_s['formule']==filtre_formule]
                 if rech:
                     df_s = df_s[df_s.apply(lambda r: rech.lower() in str(r).lower(), axis=1)]
                 df_s.columns = ["Numero","Statut","Vendeur","Client","Formule","Total FCFA","Date ajout","Expiration"]
