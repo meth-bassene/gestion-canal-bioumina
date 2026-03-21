@@ -38,9 +38,10 @@ st.markdown("""
 .stApp { background:#f4f4f4 !important; }
 
 /* SIDEBAR — grande et tactile */
-/* Sidebar cachée — navigation en haut */
-[data-testid="stSidebar"] { display: none !important; }
-section[data-testid="stSidebarContent"] { display: none !important; }
+/* Sidebar visible sur ordinateur, cachée sur mobile */
+@media (max-width: 768px) {
+    [data-testid="stSidebar"] { display: none !important; }
+}
 
 /* BOUTONS — grands et tactiles */
 .stButton > button {
