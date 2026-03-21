@@ -554,6 +554,42 @@ if not st.session_state.connecte:
 # ═══ APP ═════════════════════════════════════════════════════
 else:
     nc = notif_count(st.session_state.user)
+    # NAVBAR MOBILE EN HAUT
+    notif_lbl = f"Notifications {'(!)' if nc>0 else ''}"
+    if st.session_state.role=="admin":
+        opts = ["Dashboard","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
+    else:
+        opts = ["Dashboard","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
+
+    # Header avec logo et infos
+    st.markdown(f"""
+    <div style="background:#0a0a0a;padding:12px 16px;margin:-1rem -1rem 1rem -1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:999;">
+        <img src="data:image/png;base64,{LOGO_B64}" style="height:40px;width:auto;">
+        <div style="color:#fff;font-size:0.85rem;text-align:right;">
+            <div style="opacity:0.5;font-size:0.7rem;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
+            <div style="font-weight:600;">{st.session_state.nom}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Menu horizontal scrollable
+    choix = st.selectbox("", opts, label_visibility="collapsed", key="menu_choix")
+
+    # Bouton déconnexion compact
+    col_deco = st.columns([4,1])[1]
+    with col_deco:
+        if st.button("Quitter", use_container_width=True):
+            st.session_state.connecte = False
+            if USE_COOKIES:
+                try:
+                    cookies["user"] = ""
+                    cookies["role"] = ""
+                    cookies["nom"] = ""
+                    cookies.save()
+                except:
+                    pass
+            st.rerun()
+
     with st.sidebar:
         st.markdown(f'<img src="data:image/png;base64,{LOGO_B64}" style="width:100%;display:block;">', unsafe_allow_html=True)
         st.markdown(f"""
@@ -561,12 +597,7 @@ else:
         <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{'ADMIN' if st.session_state.role=='admin' else 'VENDEUR'}</div>
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
-        notif_lbl = f"Notifications {'(!)' if nc>0 else ''}"
-        if st.session_state.role=="admin":
-            opts = ["Dashboard","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
-        else:
-            opts = ["Dashboard","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
-        choix = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
+        st.radio("", opts, label_visibility="collapsed", key="menu_sidebar")
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
