@@ -42,6 +42,17 @@ st.markdown("""
 @media (max-width: 768px) {
     [data-testid="stSidebar"] { display: none !important; }
 }
+[data-testid="stSidebar"] { background:#0a0a0a !important; }
+[data-testid="stSidebar"] * { color:#ffffff !important; }
+[data-testid="stSidebar"] .stRadio label {
+    padding:14px 16px !important; border-radius:8px !important;
+    display:block !important; font-size:1rem !important;
+    font-weight:500 !important; margin-bottom:2px !important;
+    cursor:pointer !important; min-height:50px !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover { background:#1f1f1f !important; }
+[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p { color:#ffffff !important; }
+[data-testid="stSidebar"] div[data-testid="stWidgetLabel"] p { color:#ffffff !important; }
 
 /* BOUTONS — grands et tactiles */
 .stButton > button {
