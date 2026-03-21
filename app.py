@@ -724,14 +724,18 @@ else:
                 duree = st.selectbox("Duree de l abonnement", ["1 mois","3 mois","6 mois","12 mois"])
             with c2:
                 formule = st.selectbox("Formule Canal+", list(FORMULES.keys()))
-                prix_formule = FORMULES[formule]
+                prix_formule_mensuel = FORMULES[formule]
                 prix_deco = st.number_input("Prix du decodeur (FCFA)", min_value=0, value=PRIX_DECODEUR_DEFAULT, step=500)
                 prix_deco_final = prix_deco
                 promo_val = 0
+                # Calculer prix formule selon durée
+                duree_mois_map = {"1 mois":1,"3 mois":3,"6 mois":6,"12 mois":12}
+                nb_mois = duree_mois_map.get(duree, 1)
+                prix_formule = prix_formule_mensuel * nb_mois
                 total = prix_formule + prix_deco_final
                 st.markdown(f"""
                 <div class="prix-box">
-                    <div class="plabel">Prix formule {formule}</div>
+                    <div class="plabel">Prix formule {formule} × {nb_mois} mois</div>
                     <div class="pmontant">{prix_formule:,} FCFA</div>
                 </div>
                 <div class="total-box">
@@ -743,7 +747,7 @@ else:
 
             duree_map = {"1 mois":30,"3 mois":90,"6 mois":180,"12 mois":365}
             date_exp = (datetime.now()+timedelta(days=duree_map[duree])).strftime("%Y-%m-%d")
-            st.info(f"Date d expiration : {date_exp}")
+            st.info(f"Echeance de reabonnement : {date_exp}")
 
             if not st.session_state.confirmer_vente:
                 if st.button("Confirmer la vente", use_container_width=True):
@@ -768,7 +772,7 @@ else:
                     Client : {v['client_nom']} — Tel : {v['client_tel']}<br>
                     Formule : {v['formule']}<br>
                     Total : <b>{v['total']:,} FCFA</b><br>
-                    Expiration : {v['date_exp']}
+                    Echeance reabonnement : {v['date_exp']}
                 </div>
                 """, unsafe_allow_html=True)
                 col_oui, col_non = st.columns(2)
