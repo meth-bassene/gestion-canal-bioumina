@@ -206,7 +206,23 @@ div[class*="StatusWidget"] { display: none !important; }
     .stButton > button { min-height:56px !important; font-size:1.05rem !important; }
     .stTextInput input, .stNumberInput input { min-height:54px !important; font-size:1.05rem !important; }
     [data-testid="stSidebar"] .stRadio label { min-height:58px !important; font-size:1.1rem !important; }
+    /* Cacher sidebar sur mobile */
+    [data-testid="stSidebar"] { display: none !important; }
+    /* Montrer menu mobile */
+    .mobile-nav { display: flex !important; }
+    .mobile-select { display: block !important; }
 }
+
+/* Sur ordinateur — cacher menu mobile */
+.mobile-nav {
+    display: none;
+    background: #0a0a0a;
+    padding: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+    margin: -1rem -1rem 0.5rem -1rem;
+}
+.mobile-select { display: none; margin-bottom: 1rem; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -522,45 +538,14 @@ if not st.session_state.connecte:
 # ═══ APP ═════════════════════════════════════════════════════
 else:
     nc = notif_count(st.session_state.user)
-    # NAVBAR MOBILE EN HAUT
+    # NAVIGATION
     notif_lbl = f"Notifications {'(!)' if nc>0 else ''}"
     if st.session_state.role=="admin":
         opts = ["Dashboard","Vente","Stock","Reabonnements",notif_lbl,"Vendeurs","Rapports","Parametres"]
     else:
         opts = ["Dashboard","Vente","Reabonnements",notif_lbl,"Mes Rapports"]
 
-    # Header avec logo et infos
-    st.markdown(f"""
-    <div style="background:#0a0a0a;padding:12px 16px;margin:-1rem -1rem 1rem -1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:999;">
-        <img src="data:image/png;base64,{LOGO_B64}" style="height:40px;width:auto;">
-        <div style="color:#fff;font-size:0.85rem;text-align:right;">
-            <div style="opacity:0.5;font-size:0.7rem;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
-            <div style="font-weight:600;">{st.session_state.nom}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Menu horizontal scrollable
-    nav_idx = opts.index(st.session_state.get("nav_choix", opts[0])) if st.session_state.get("nav_choix") in opts else 0
-    choix = st.selectbox("", opts, label_visibility="collapsed", key="menu_choix", index=nav_idx)
-    if "nav_choix" in st.session_state:
-        del st.session_state["nav_choix"]
-
-    # Bouton déconnexion compact
-    col_deco = st.columns([4,1])[1]
-    with col_deco:
-        if st.button("Deconnecter", use_container_width=True):
-            st.session_state.connecte = False
-            if USE_COOKIES:
-                try:
-                    cookies["user"] = ""
-                    cookies["role"] = ""
-                    cookies["nom"] = ""
-                    cookies.save()
-                except:
-                    pass
-            st.rerun()
-
+    # SIDEBAR — navigation ordinateur
     with st.sidebar:
         st.markdown(f'<img src="data:image/png;base64,{LOGO_B64}" style="width:100%;display:block;">', unsafe_allow_html=True)
         st.markdown(f"""
@@ -568,12 +553,7 @@ else:
         <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{'ADMIN' if st.session_state.role=='admin' else 'VENDEUR'}</div>
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
-        # Synchroniser sidebar avec menu du haut
-        idx = opts.index(choix) if choix in opts else 0
-        choix_sidebar = st.radio("", opts, label_visibility="collapsed", key="menu_sidebar", index=idx)
-        if choix_sidebar != choix:
-            st.session_state["nav_choix"] = choix_sidebar
-            st.rerun()
+        choix = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
@@ -586,6 +566,26 @@ else:
                 except:
                     pass
             st.rerun()
+
+    # MENU MOBILE — visible seulement sur petit ecran
+    st.markdown(f"""
+    <div class="mobile-nav">
+        <img src="data:image/png;base64,{LOGO_B64}" style="height:36px;width:auto;">
+        <div style="color:#fff;font-size:0.8rem;">
+            <span style="opacity:0.5;font-size:0.7rem;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</span>
+            <b style="display:block;">{st.session_state.nom}</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Selectbox mobile — caché sur ordinateur
+    st.markdown('<div class="mobile-select">', unsafe_allow_html=True)
+    choix_mobile = st.selectbox("Navigation", opts, label_visibility="collapsed", key="menu_mobile")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Utiliser choix mobile si on est sur mobile
+    if choix_mobile != opts[0] or "menu_choix" not in st.session_state:
+        choix = choix_mobile
 
     # ══ DASHBOARD ════════════════════════════════════════════
     if choix == "Dashboard":
