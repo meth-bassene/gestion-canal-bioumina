@@ -570,7 +570,7 @@ else:
         <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
-        choix = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
+        choix_side = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
@@ -584,16 +584,36 @@ else:
                     pass
             st.rerun()
 
-    # MENU MOBILE — toujours visible
-    st.markdown(f"""
-    <div class="mobile-header">
-        <img src="data:image/png;base64,{LOGO_B64}" style="height:36px;width:auto;">
-        <div style="color:#fff;text-align:right;">
-            <div style="font-size:0.68rem;opacity:0.5;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
-            <div style="font-weight:600;font-size:0.85rem;">{st.session_state.nom}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # HEADER + SELECTBOX — toujours visible sur mobile ET ordinateur
+    col_h1, col_h2 = st.columns([3,1])
+    with col_h1:
+        st.markdown(f'<img src="data:image/png;base64,{LOGO_B64}" style="height:44px;width:auto;">', unsafe_allow_html=True)
+    with col_h2:
+        st.markdown(f"""
+        <div style="text-align:right;padding-top:6px;">
+            <div style="font-size:0.68rem;color:#999;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
+            <div style="font-weight:600;font-size:0.85rem;color:#0a0a0a;">{st.session_state.nom}</div>
+        </div>""", unsafe_allow_html=True)
+    
+    col_sel, col_exit = st.columns([5,1])
+    with col_sel:
+        choix_top = st.selectbox("", opts, label_visibility="collapsed", key="menu_top")
+    with col_exit:
+        if st.button("Exit", use_container_width=True):
+            st.session_state.connecte = False
+            if USE_COOKIES:
+                try:
+                    cookies["user"] = ""
+                    cookies["role"] = ""
+                    cookies["nom"] = ""
+                    cookies.save()
+                except:
+                    pass
+            st.rerun()
+    # Choix final - sidebar prioritaire sur ordinateur
+    choix = st.session_state.get("menu_choix", opts[0])
+    if choix == opts[0] and st.session_state.get("menu_top") in opts:
+        choix = st.session_state.get("menu_top", opts[0])
 
     # ══ DASHBOARD ════════════════════════════════════════════
     if choix == "Accueil":
