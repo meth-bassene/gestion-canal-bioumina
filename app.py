@@ -208,39 +208,7 @@ div[class*="StatusWidget"] { display: none !important; }
     [data-testid="stSidebar"] .stRadio label { min-height:58px !important; font-size:1.1rem !important; }
 }
 
-/* BOUTON MENU FLOTTANT MOBILE */
-.menu-flottant {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9999;
-    background: #0a0a0a;
-    color: #ffffff;
-    border: none;
-    border-radius: 50px;
-    padding: 14px 24px;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    text-decoration: none;
-    display: inline-block;
-}
-.menu-flottant:hover { background: #333; }
 </style>
-""", unsafe_allow_html=True)
-
-# Bouton menu flottant pour mobile
-st.markdown("""
-<script>
-function toggleMenu() {
-    var sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-    if (sidebar) {
-        sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
-    }
-}
-</script>
-<button class="menu-flottant" onclick="toggleMenu()">☰ Menu</button>
 """, unsafe_allow_html=True)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'appstock.db')
@@ -635,23 +603,30 @@ else:
         else:
             st.info("Aucune vente aujourd'hui.")
 
-        if alertes:
+        # Filtrer alertes selon le rôle
+        mes_alertes = alertes if st.session_state.role == "admin" else [a for a in alertes if a.get('vendeur') == st.session_state.user]
+        mes_dormants = dormants if st.session_state.role == "admin" else [d for d in dormants if d[1] == st.session_state.user]
+
+        if mes_alertes:
             st.markdown("#### Alertes Reabonnements")
-            for a in alertes[:5]:
+            for a in mes_alertes[:5]:
                 wa = wa_link(a['tel'],a['client'],a['jours'])
                 if a['statut']=='expiré':
                     st.markdown(f'<div class="alerte rouge"><b>{a["client"]}</b> — {a["numero"]} — Expire depuis {abs(a["jours"])} jours — Tel: {a["tel"]} <a href="{wa}" target="_blank" class="wa-btn">WhatsApp</a></div>', unsafe_allow_html=True)
                 else:
                     st.markdown(f'<div class="alerte jaune"><b>{a["client"]}</b> — {a["numero"]} — Expire dans {a["jours"]} jours — Tel: {a["tel"]} <a href="{wa}" target="_blank" class="wa-btn">WhatsApp</a></div>', unsafe_allow_html=True)
 
-        if dormants:
+        if mes_dormants:
             st.markdown("#### Decodeurs Dormants (plus d'1 mois)")
-            for num,vendeur,date_ajout in dormants[:4]:
+            for num,vendeur,date_ajout in mes_dormants[:4]:
                 st.markdown(f'<div class="alerte jaune"><b>{num}</b> — {vendeur or "Non affecte"} — Ajoute le {date_ajout}</div>', unsafe_allow_html=True)
 
         st.markdown("#### Dernieres Ventes")
         conn = db()
-        df_v = pd.read_sql_query("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
+        if st.session_state.role == "admin":
+            df_v = pd.read_sql_query("SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' ORDER BY date_activation DESC LIMIT 8", conn)
+        else:
+            df_v = pd.read_sql_query(f"SELECT numero, client_nom, formule, prix_formule, prix_decodeur, promo, prix_total, date_activation FROM decodeurs WHERE statut='vendu' AND affecte_a='{st.session_state.user}' ORDER BY date_activation DESC LIMIT 8", conn)
         conn.close()
         if not df_v.empty:
             df_v.columns = ["Numero","Client","Formule","Prix Formule","Prix Decodeur","Promo","Total FCFA","Date"]
@@ -948,9 +923,15 @@ else:
         st.markdown('<div class="page-title">Notifications</div>', unsafe_allow_html=True)
         conn = db()
         cur = conn.cursor()
-        cur.execute("SELECT message,type,date_creation,lu FROM notifications WHERE destinataire=? OR destinataire='tous' ORDER BY date_creation DESC LIMIT 60", (st.session_state.user,))
+        if st.session_state.role == "admin":
+            cur.execute("SELECT message,type,date_creation,lu FROM notifications ORDER BY date_creation DESC LIMIT 60")
+        else:
+            cur.execute("SELECT message,type,date_creation,lu FROM notifications WHERE destinataire=? OR destinataire='tous' ORDER BY date_creation DESC LIMIT 60", (st.session_state.user,))
         notifs = cur.fetchall()
-        cur.execute("UPDATE notifications SET lu=1 WHERE destinataire=? OR destinataire='tous'", (st.session_state.user,))
+        if st.session_state.role == "admin":
+            cur.execute("UPDATE notifications SET lu=1")
+        else:
+            cur.execute("UPDATE notifications SET lu=1 WHERE destinataire=? OR destinataire='tous'", (st.session_state.user,))
         conn.commit()
         conn.close()
         if not notifs:
@@ -1119,13 +1100,14 @@ else:
         """, conn)
         conn.close()
         if not df_rap.empty:
-            st.markdown("#### Classement vendeurs")
-            medals = ["1er","2eme","3eme"]
-            top3 = df_rap.head(3)
-            cols = st.columns(len(top3))
-            for i,(_,row) in enumerate(top3.iterrows()):
-                with cols[i]:
-                    st.markdown(f'<div class="podium-card"><div class="podium-emoji">{"🥇" if i==0 else "🥈" if i==1 else "🥉"}</div><div class="podium-nom">{row["nom_complet"]}</div><div class="podium-stat">{int(row["ventes"])} ventes</div><div class="podium-stat"><b>{row["ca"]:,.0f} FCFA</b></div></div>', unsafe_allow_html=True)
+            if st.session_state.role == "admin":
+                st.markdown("#### Classement vendeurs")
+                medals = ["1er","2eme","3eme"]
+                top3 = df_rap.head(3)
+                cols = st.columns(len(top3))
+                for i,(_,row) in enumerate(top3.iterrows()):
+                    with cols[i]:
+                        st.markdown(f'<div class="podium-card"><div class="podium-emoji">{"🥇" if i==0 else "🥈" if i==1 else "🥉"}</div><div class="podium-nom">{row["nom_complet"]}</div><div class="podium-stat">{int(row["ventes"])} ventes</div><div class="podium-stat"><b>{row["ca"]:,.0f} FCFA</b></div></div>', unsafe_allow_html=True)
 
             if st.session_state.role == "vendeur":
                 df_rap = df_rap[df_rap['username']==st.session_state.user]
