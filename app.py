@@ -546,7 +546,7 @@ else:
     # Bouton déconnexion compact
     col_deco = st.columns([4,1])[1]
     with col_deco:
-        if st.button("Quitter", use_container_width=True):
+        if st.button("Deconnecter", use_container_width=True):
             st.session_state.connecte = False
             if USE_COOKIES:
                 try:
