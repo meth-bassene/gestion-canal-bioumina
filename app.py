@@ -565,7 +565,12 @@ else:
         <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{'ADMIN' if st.session_state.role=='admin' else 'VENDEUR'}</div>
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
-        st.radio("", opts, label_visibility="collapsed", key="menu_sidebar")
+        # Synchroniser sidebar avec menu du haut
+        idx = opts.index(choix) if choix in opts else 0
+        choix_sidebar = st.radio("", opts, label_visibility="collapsed", key="menu_sidebar", index=idx)
+        if choix_sidebar != choix:
+            st.session_state.menu_choix = choix_sidebar
+            st.rerun()
         st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
         if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
