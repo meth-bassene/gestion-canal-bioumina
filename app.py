@@ -358,18 +358,29 @@ def restore_from_supabase():
 
 init_db()
 
-def get_stats():
+def get_stats(user=None, role="admin"):
     conn = db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='disponible'")
-    dispo = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu'")
-    vendus = c.fetchone()[0]
-    c.execute("SELECT COALESCE(SUM(prix_total),0) FROM decodeurs WHERE statut='vendu'")
-    ca = c.fetchone()[0]
-    today = datetime.now().strftime("%Y-%m-%d")
-    c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation LIKE ?", (f"{today}%",))
-    vj = c.fetchone()[0]
+    if role == "admin" or user is None:
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='disponible'")
+        dispo = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu'")
+        vendus = c.fetchone()[0]
+        c.execute("SELECT COALESCE(SUM(prix_total),0) FROM decodeurs WHERE statut='vendu'")
+        ca = c.fetchone()[0]
+        today = datetime.now().strftime("%Y-%m-%d")
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND date_activation LIKE ?", (f"{today}%",))
+        vj = c.fetchone()[0]
+    else:
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='disponible' AND affecte_a=?", (user,))
+        dispo = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND affecte_a=?", (user,))
+        vendus = c.fetchone()[0]
+        c.execute("SELECT COALESCE(SUM(prix_total),0) FROM decodeurs WHERE statut='vendu' AND affecte_a=?", (user,))
+        ca = c.fetchone()[0]
+        today = datetime.now().strftime("%Y-%m-%d")
+        c.execute("SELECT COUNT(*) FROM decodeurs WHERE statut='vendu' AND affecte_a=? AND date_activation LIKE ?", (user, f"{today}%",))
+        vj = c.fetchone()[0]
     conn.close()
     return dispo, vendus, ca, vj
 
@@ -610,17 +621,18 @@ else:
                 except:
                     pass
             st.rerun()
-    # Choix final - sidebar prioritaire sur ordinateur
-    choix = st.session_state.get("menu_choix", opts[0])
-    if choix == opts[0] and st.session_state.get("menu_top") in opts:
-        choix = st.session_state.get("menu_top", opts[0])
+    # Choix final - menu_top et menu_choix synchronisés
+    choix_top_val = st.session_state.get("menu_top", opts[0])
+    choix_side_val = st.session_state.get("menu_choix", opts[0])
+    # Prendre le dernier modifié
+    choix = choix_top_val if choix_top_val != opts[0] or choix_side_val == opts[0] else choix_side_val
 
     # ══ DASHBOARD ════════════════════════════════════════════
     if choix == "Accueil":
         heure = datetime.now().hour
         salut = "Bonjour" if heure < 12 else "Bon après-midi" if heure < 18 else "Bonsoir"
         st.markdown(f'<div class="page-title">{salut}, {st.session_state.nom} ! 👋</div>', unsafe_allow_html=True)
-        dispo,vendus,ca,vj = get_stats()
+        dispo,vendus,ca,vj = get_stats(st.session_state.user, st.session_state.role)
         alertes = get_alertes()
         dormants = get_dormants()
         c1,c2,c3,c4 = st.columns(4)
