@@ -560,6 +560,7 @@ if not st.session_state.connecte:
                     cur.execute("UPDATE users SET password=?,token=NULL,token_expiry=NULL WHERE username=?", (h.decode(),res[0]))
                     conn.commit()
                     conn.close()
+                    backup_to_supabase()
                     st.success("Mot de passe mis a jour !")
                     st.session_state.mode_token = False
                     st.rerun()
@@ -1077,6 +1078,7 @@ else:
                 nt = st.text_input("Numero de telephone")
                 np_v = st.text_input("Mot de passe initial", type="password")
             if st.session_state.get('vendeur_cree', False):
+                backup_to_supabase()
                 st.success("Compte vendeur cree avec succes !")
                 if st.button("Creer un autre vendeur", use_container_width=True):
                     st.session_state.vendeur_cree = False
@@ -1186,6 +1188,7 @@ else:
                     conn.commit()
                     conn.close()
                     st.markdown(f'<div class="token-box">{token}</div>', unsafe_allow_html=True)
+                    backup_to_supabase()
                     st.success(f"Token valable 2 heures — expire a {expiry}")
 
     # ══ RAPPORTS ════════════════════════════════════════════
@@ -1290,6 +1293,7 @@ else:
                         h = bcrypt.hashpw(nouveau_pwd1.encode(), bcrypt.gensalt())
                         cur.execute("UPDATE users SET password=? WHERE username=?", (h.decode(), st.session_state.user))
                         conn.commit()
+                        backup_to_supabase()
                         st.success("Mot de passe mis a jour.")
                     else:
                         st.error("Ancien mot de passe incorrect.")
