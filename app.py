@@ -597,8 +597,15 @@ else:
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
         choix_side = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
-        st.markdown("<hr style='border-color:#1a1a1a;'>", unsafe_allow_html=True)
-        if st.button("Deconnexion", use_container_width=True):
+        
+        # Espace vide pour pousser le bouton en bas
+        st.markdown("""
+        <div style="flex:1;min-height:40px;"></div>
+        <hr style="border-color:#1a1a1a;margin-top:auto;">
+        """, unsafe_allow_html=True)
+        
+        # Bouton déconnexion en bas
+        if st.button("🚪 Deconnexion", use_container_width=True):
             st.session_state.connecte = False
             if USE_COOKIES:
                 try:
@@ -609,6 +616,19 @@ else:
                 except:
                     pass
             st.rerun()
+        
+        st.markdown("""
+        <style>
+        [data-testid="stSidebar"] > div:first-child {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        [data-testid="stSidebar"] .stButton {
+            margin-top: auto;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
     # HEADER + SELECTBOX — toujours visible sur mobile ET ordinateur
     col_h1, col_h2 = st.columns([3,1])
@@ -733,7 +753,7 @@ else:
             st.markdown(f'<div class="card"><b>{len(df_dispo)} decodeur(s) disponible(s)</b></div>', unsafe_allow_html=True)
             c1,c2 = st.columns(2)
             with c1:
-                numero = st.selectbox("Numero du decodeur", df_dispo['numero'].tolist())
+                numero = st.selectbox("Numero du decodeur", ["Choisir un decodeur..."] + df_dispo['numero'].tolist(), key="vente_numero")
                 client_nom = st.text_input("Nom du client")
                 client_tel = st.text_input("Numero de telephone du client")
                 duree = st.selectbox("Duree de l abonnement", ["1 mois","3 mois","6 mois","12 mois"])
@@ -766,7 +786,7 @@ else:
 
             if not st.session_state.confirmer_vente:
                 if st.button("Confirmer la vente", use_container_width=True):
-                    if client_nom and client_tel:
+                    if client_nom and client_tel and numero != "Choisir un decodeur...":
                         st.session_state.confirmer_vente = True
                         st.session_state.vente_data = {
                             "numero": numero, "client_nom": client_nom,
@@ -777,7 +797,10 @@ else:
                         }
                         st.rerun()
                     else:
-                        st.error("Remplissez le nom et le numero de telephone du client.")
+                        if numero == "Choisir un decodeur...":
+                            st.error("Choisissez un decodeur.")
+                        else:
+                            st.error("Remplissez le nom et le numero de telephone du client.")
             else:
                 v = st.session_state.vente_data
                 st.markdown(f"""
@@ -808,6 +831,10 @@ else:
                         backup_to_supabase()
                         st.session_state.confirmer_vente = False
                         st.session_state.vente_data = {}
+                        # Réinitialiser les champs
+                        for k in ['vente_numero','vente_client_nom','vente_client_tel','vente_formule','vente_duree']:
+                            if k in st.session_state:
+                                del st.session_state[k]
                         st.success(f"Vente confirmee ! {v['numero']} vendu a {v['client_nom']} pour {v['total']:,} FCFA")
                         st.balloons()
                         st.rerun()
@@ -1085,10 +1112,11 @@ else:
                 nt = st.text_input("Numero de telephone")
                 np_v = st.text_input("Mot de passe initial", type="password")
             if st.session_state.get('vendeur_cree', False):
-                backup_to_supabase()
-                st.success("Compte vendeur cree avec succes !")
+                nom_cree = st.session_state.get('nouveau_vendeur_nom', 'le vendeur')
+                st.success(f"Compte cree pour {nom_cree} avec succes !")
                 if st.button("Creer un autre vendeur", use_container_width=True):
                     st.session_state.vendeur_cree = False
+                    st.session_state.nouveau_vendeur_nom = ""
                     st.rerun()
             else:
              if st.button("Creer le compte vendeur", use_container_width=True):
@@ -1102,8 +1130,8 @@ else:
                         conn.commit()
                         conn.close()
                         backup_to_supabase()
-                        st.success(f"Compte cree pour {nn} — connexion avec le telephone {nt}")
                         st.session_state.vendeur_cree = True
+                        st.session_state.nouveau_vendeur_nom = nn
                         for k in ['nu','nn','nt','np_v']:
                             if k in st.session_state:
                                 del st.session_state[k]
