@@ -641,25 +641,10 @@ else:
             <div style="font-weight:600;font-size:0.85rem;color:#0a0a0a;">{st.session_state.nom}</div>
         </div>""", unsafe_allow_html=True)
     
-    col_sel, col_exit = st.columns([5,1])
-    with col_sel:
-        choix_top = st.selectbox("", opts, label_visibility="collapsed", key="menu_top")
-    with col_exit:
-        if st.button("Deconnexion", use_container_width=True):
-            st.session_state.connecte = False
-            if USE_COOKIES:
-                try:
-                    cookies["user"] = ""
-                    cookies["role"] = ""
-                    cookies["nom"] = ""
-                    cookies.save()
-                except:
-                    pass
-            st.rerun()
-    # Choix final - menu_top et menu_choix synchronisés
+    choix_top = st.selectbox("", opts, label_visibility="collapsed", key="menu_top")
+    # Choix final
     choix_top_val = st.session_state.get("menu_top", opts[0])
     choix_side_val = st.session_state.get("menu_choix", opts[0])
-    # Prendre le dernier modifié
     choix = choix_top_val if choix_top_val != opts[0] or choix_side_val == opts[0] else choix_side_val
 
     # ══ DASHBOARD ════════════════════════════════════════════
@@ -1343,3 +1328,19 @@ else:
             st.dataframe(df_hist, use_container_width=True, hide_index=True)
         else:
             st.info("Aucune modification enregistree.")
+
+    # DECONNEXION MOBILE — visible en bas sur telephone
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="mobile-logout-btn">', unsafe_allow_html=True)
+    if st.button("🚪 Deconnexion", key="btn_deco_mobile", use_container_width=True):
+        st.session_state.connecte = False
+        if USE_COOKIES:
+            try:
+                cookies["user"] = ""
+                cookies["role"] = ""
+                cookies["nom"] = ""
+                cookies.save()
+            except:
+                pass
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
