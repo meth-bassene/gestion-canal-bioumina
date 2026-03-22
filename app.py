@@ -213,6 +213,9 @@ div[data-testid="stToolbar"] { display: none !important; }
 .stSpinner { display: none !important; }
 div[class*="StatusWidget"] { display: none !important; }
 
+/* SCROLL VERS LE HAUT */
+.scroll-top { display: none; }
+
 /* MOBILE RESPONSIVE */
 @media (max-width: 768px) {
     .stat-value { font-size:1.5rem !important; }
@@ -439,6 +442,13 @@ def notif_count(user):
     n = c.fetchone()[0]
     conn.close()
     return n
+
+def scroll_top():
+    st.markdown("""
+    <script>
+        window.parent.document.querySelector('section.main').scrollTo(0, 0);
+    </script>
+    """, unsafe_allow_html=True)
 
 def push_notif(message, type_n, destinataire="tous"):
     conn = db()
@@ -739,8 +749,8 @@ else:
             c1,c2 = st.columns(2)
             with c1:
                 numero = st.selectbox("Numero du decodeur", ["Choisir un decodeur..."] + df_dispo['numero'].tolist(), key="vente_numero")
-                client_nom = st.text_input("Nom du client")
-                client_tel = st.text_input("Numero de telephone du client")
+                client_nom = st.text_input("Nom du client", key="vente_client_nom", value=st.session_state.get("vente_client_nom_val", ""))
+                client_tel = st.text_input("Numero de telephone du client", key="vente_client_tel", value=st.session_state.get("vente_client_tel_val", ""))
                 duree = st.selectbox("Duree de l abonnement", ["1 mois","3 mois","6 mois","12 mois"])
             with c2:
                 formule = st.selectbox("Formule Canal+", list(FORMULES.keys()))
@@ -817,11 +827,15 @@ else:
                         st.session_state.confirmer_vente = False
                         st.session_state.vente_data = {}
                         # Réinitialiser les champs
+                        # Vider les champs
+                        st.session_state["vente_client_nom_val"] = ""
+                        st.session_state["vente_client_tel_val"] = ""
                         for k in ['vente_numero','vente_client_nom','vente_client_tel','vente_formule','vente_duree']:
                             if k in st.session_state:
                                 del st.session_state[k]
                         st.success(f"Vente confirmee ! {v['numero']} vendu a {v['client_nom']} pour {v['total']:,} FCFA")
                         st.balloons()
+                        scroll_top()
                         st.rerun()
                 with col_non:
                     if st.button("Annuler", use_container_width=True):
@@ -1120,6 +1134,7 @@ else:
                         for k in ['nu','nn','nt','np_v']:
                             if k in st.session_state:
                                 del st.session_state[k]
+                        scroll_top()
                         st.rerun()
                     except Exception:
                         st.error("Identifiant ou telephone deja utilise.")
