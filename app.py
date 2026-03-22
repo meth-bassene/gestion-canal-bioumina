@@ -901,35 +901,53 @@ else:
                     st.warning("Scanner non disponible. Utilisez la saisie manuelle.")
 
         with tab3:
+            st.markdown("#### Gestion des decodeurs affectes")
             conn = db()
-            df_mod = pd.read_sql_query("SELECT numero,client_nom,client_tel,formule,prix_total FROM decodeurs WHERE statut='vendu'", conn)
+            df_aff = pd.read_sql_query("SELECT numero, statut, affecte_a, client_nom, date_ajout FROM decodeurs ORDER BY date_ajout DESC", conn)
             conn.close()
-            if df_mod.empty:
-                st.info("Aucune vente a modifier.")
+
+            if df_aff.empty:
+                st.info("Aucun decodeur.")
             else:
-                num_sel = st.selectbox("Choisir le decodeur vendu", df_mod['numero'].tolist())
-                row = df_mod[df_mod['numero']==num_sel].iloc[0]
-                c1,c2 = st.columns(2)
-                with c1:
-                    new_nom = st.text_input("Nom du client", value=str(row['client_nom'] or ''))
-                    new_tel = st.text_input("Numero de telephone", value=str(row['client_tel'] or ''))
-                with c2:
-                    flist = list(FORMULES.keys())
-                    fidx = flist.index(row['formule']) if row['formule'] in flist else 0
-                    new_formule = st.selectbox("Formule", flist, index=fidx)
-                    new_prix = st.number_input("Prix total FCFA", value=float(row['prix_total'] or 0), step=500.0)
-                if st.button("Sauvegarder les modifications"):
-                    conn = db()
-                    cur = conn.cursor()
-                    for champ,old,new in [("client_nom",row['client_nom'],new_nom),("client_tel",row['client_tel'],new_tel),("formule",row['formule'],new_formule),("prix_total",row['prix_total'],new_prix)]:
-                        if str(old) != str(new):
-                            cur.execute("INSERT INTO historique_modifications VALUES (NULL,?,?,?,?,?,?)",
-                                        (num_sel,champ,str(old),str(new),st.session_state.user,datetime.now().strftime("%Y-%m-%d %H:%M")))
-                    cur.execute("UPDATE decodeurs SET client_nom=?,client_tel=?,formule=?,prix_total=? WHERE numero=?",
-                                (new_nom,new_tel,new_formule,new_prix,num_sel))
-                    conn.commit()
-                    conn.close()
-                    st.success("Modifications enregistrees.")
+                num_sel = st.selectbox("Choisir un decodeur", df_aff["numero"].tolist(), key="mod_dec_sel")
+                row = df_aff[df_aff["numero"]==num_sel].iloc[0]
+
+                st.markdown(f"""
+                <div class="card">
+                    Numero : <b>{row["numero"]}</b><br>
+                    Statut : <b>{row["statut"]}</b><br>
+                    Affecte a : <b>{row["affecte_a"] or "Non affecte"}</b><br>
+                    Client : <b>{row["client_nom"] or "—"}</b>
+                </div>""", unsafe_allow_html=True)
+
+                action = st.radio("Action", ["Reaffecter a un autre vendeur", "Supprimer ce decodeur"], horizontal=True, key="action_dec")
+
+                if action == "Reaffecter a un autre vendeur":
+                    vendeurs = get_vendeurs()
+                    v_opts = [f"{v[1]} ({v[0]})" for v in vendeurs]
+                    v_sel = st.selectbox("Nouveau vendeur", v_opts, key="reaffect_sel")
+                    v_username = vendeurs[v_opts.index(v_sel)][0]
+                    if st.button("Confirmer la reaffectation", use_container_width=True):
+                        conn = db()
+                        cur = conn.cursor()
+                        cur.execute("UPDATE decodeurs SET affecte_a=? WHERE numero=?", (v_username, num_sel))
+                        conn.commit()
+                        conn.close()
+                        backup_to_supabase()
+                        st.success(f"Decodeur {num_sel} reaffecte a {v_sel}")
+                        st.rerun()
+
+                elif action == "Supprimer ce decodeur":
+                    st.warning(f"Vous allez supprimer le decodeur {num_sel}. Cette action est irreversible.")
+                    if st.button("Confirmer la suppression", use_container_width=True):
+                        conn = db()
+                        cur = conn.cursor()
+                        cur.execute("DELETE FROM decodeurs WHERE numero=?", (num_sel,))
+                        conn.commit()
+                        conn.close()
+                        backup_to_supabase()
+                        st.success(f"Decodeur {num_sel} supprime.")
+                        st.rerun()
 
     # ══ REABONNEMENTS ════════════════════════════════════════
     elif choix == "Reabonnements":
