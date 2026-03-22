@@ -1,3 +1,4 @@
+
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -578,7 +579,7 @@ else:
         st.markdown(f'<img src="data:image/png;base64,{LOGO_B64}" style="width:100%;display:block;">', unsafe_allow_html=True)
         st.markdown(f"""
         <hr style="border-color:#1a1a1a;margin:8px 0 12px;">
-        <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
+        <div style="font-size:0.75rem;opacity:0.5;margin-bottom:2px;">{"Compte Principal" if st.session_state.role=="admin" else "Vendeur"}</div>
         <div style="font-weight:600;font-size:0.9rem;margin-bottom:16px;">{st.session_state.nom}</div>
         """, unsafe_allow_html=True)
         choix_side = st.radio("", opts, label_visibility="collapsed", key="menu_choix")
@@ -602,7 +603,7 @@ else:
     with col_h2:
         st.markdown(f"""
         <div style="text-align:right;padding-top:6px;">
-            <div style="font-size:0.68rem;color:#999;">{"ADMIN" if st.session_state.role=="admin" else "VENDEUR"}</div>
+            <div style="font-size:0.68rem;color:#999;">{"Compte Principal" if st.session_state.role=="admin" else "Vendeur"}</div>
             <div style="font-weight:600;font-size:0.85rem;color:#0a0a0a;">{st.session_state.nom}</div>
         </div>""", unsafe_allow_html=True)
     
@@ -610,7 +611,7 @@ else:
     with col_sel:
         choix_top = st.selectbox("", opts, label_visibility="collapsed", key="menu_top")
     with col_exit:
-        if st.button("Exit", use_container_width=True):
+        if st.button("Deconnexion", use_container_width=True):
             st.session_state.connecte = False
             if USE_COOKIES:
                 try:
@@ -631,7 +632,7 @@ else:
     if choix == "Accueil":
         heure = datetime.now().hour
         salut = "Bonjour" if heure < 12 else "Bon après-midi" if heure < 18 else "Bonsoir"
-        st.markdown(f'<div class="page-title">{salut}, {st.session_state.nom} ! 👋</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="page-title">{salut}, {"Administrateur" if st.session_state.role=="admin" else st.session_state.nom} ! 👋</div>', unsafe_allow_html=True)
         dispo,vendus,ca,vj = get_stats(st.session_state.user, st.session_state.role)
         alertes = get_alertes()
         dormants = get_dormants()
@@ -804,7 +805,7 @@ else:
     # ══ STOCK ════════════════════════════════════════════════
     elif choix == "Stock" and st.session_state.role == "admin":
         st.markdown('<div class="page-title">Gestion du Stock</div>', unsafe_allow_html=True)
-        tab1,tab2,tab3 = st.tabs(["Stock actuel","Ajouter des decodeurs","Modifier une vente"])
+        tab1,tab2,tab3 = st.tabs(["Stock actuel","Ajouter des decodeurs","Modifier decodeur"])
 
         with tab1:
             conn = db()
