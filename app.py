@@ -489,6 +489,13 @@ for k,v in [('connecte',False),('mode_token',False),('confirmer_vente',False)]:
 # Toujours forcer mode_token à False au démarrage
 st.session_state.mode_token = False
 
+# Sauvegarde automatique toutes les heures
+now = datetime.now()
+last_backup = st.session_state.get("last_backup_time")
+if last_backup is None or (now - last_backup).seconds > 3600:
+    backup_to_supabase()
+    st.session_state.last_backup_time = now
+
 # Restaurer depuis Supabase si nécessaire
 if 'restored' not in st.session_state:
     st.session_state.restored = True
