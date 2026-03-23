@@ -940,13 +940,15 @@ else:
         with tab3:
             st.markdown("#### Gestion des decodeurs affectes")
             conn = db()
-            df_aff = pd.read_sql_query("SELECT numero, statut, affecte_a, client_nom, date_ajout FROM decodeurs ORDER BY date_ajout DESC", conn)
+            df_aff = pd.read_sql_query("SELECT numero, statut, affecte_a, client_nom, date_ajout FROM decodeurs WHERE statut='disponible' ORDER BY date_ajout DESC", conn)
             conn.close()
 
             if df_aff.empty:
-                st.info("Aucun decodeur.")
+                st.info("Aucun decodeur disponible a modifier.")
             else:
-                num_sel = st.selectbox("Choisir un decodeur", df_aff["numero"].tolist(), key="mod_dec_sel")
+                num_sel = st.selectbox("Choisir un decodeur disponible", ["Choisir..."] + df_aff["numero"].tolist(), key="mod_dec_sel")
+                if num_sel == "Choisir...":
+                    st.stop()
                 row = df_aff[df_aff["numero"]==num_sel].iloc[0]
 
                 st.markdown(f"""
